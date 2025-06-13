@@ -37,6 +37,9 @@ if (!file.exists(csv_file_path)) {
 # Load the data from the (now guaranteed to exist) CSV file
 gem_data <- fread(csv_file_path)
 
+print(unique(gem_data[["country_name"]]))
+
+
 
 # --- 2. DATA PREPROCESSING & FEATURE ENGINEERING ---
 # Subset columns, handle missing values, create new features
@@ -56,3 +59,4 @@ gem_data <- fread(csv_file_path)
 
 # --- 6. FINAL MODEL & CONCLUSION ---
 # Final model training on full training data, final evaluation
+

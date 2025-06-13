@@ -1,12 +1,13 @@
-# Machine Learning Project: Predicting Entrepreneurship
+# Machine Learning Project: Predicting Entrepreneurial Intention
 
-This project analyzes the Global Entrepreneurship Monitor (GEM) 2021 dataset to build a supervised learning model that predicts an individual's likelihood of becoming a nascent entrepreneur.
+This project analyzes the Global Entrepreneurship Monitor (GEM) 2021 dataset to build a supervised learning model. The goal is to identify the key demographic and perceptual drivers of **entrepreneurial intention** among the non-entrepreneurially active population.
 
 ## Project Structure
 
 The project is organized as follows:
 
--   `project.R`: The main R script. **This is the only file that needs to be run.** It contains the entire workflow from data loading and conversion to model training and evaluation.
+-   `project.R`: The main R script. **This is the only file that needs to be run.** It contains the entire workflow from data loading to model training and evaluation.
+-   `HYPOTHESES.md`: Outlines the theoretical hypotheses and rationale for the initial feature selection.
 -   `data/`: This directory should contain the source data. The R script will automatically convert the `.sav` file to a faster `.csv` format on its first run.
 -   `supplementary_material/`: Contains documentation for understanding the dataset variables.
 
@@ -21,7 +22,7 @@ The data and documentation were obtained from the official Global Entrepreneursh
 -   **Variable Descriptions:** `gem-2015-aps-individual-level-variable-descriptions...xlsx`
     -   **Source:** GEM Wiki Codebooks
     -   **Link:** [https://www.gemconsortium.org/about/wiki#collapse-wiki-codebooks](https://www.gemconsortium.org/about/wiki#collapse-wiki-codebooks)
-    -   *Note: The 2015 codebook is used as a clear reference for variable themes, which are largely consistent across years.*
+    -   *Note: The 2015 codebook is used as a reference for variable themes, which are largely consistent across years.*
 
 ## How to Run
 
