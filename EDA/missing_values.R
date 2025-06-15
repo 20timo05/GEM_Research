@@ -36,8 +36,8 @@ print(missing_df_sorted)
 # and perceptions (four questions each) have been randomly assigned over
 # two groups of respondents between 2003 and 2009."
 
-# This means, whole subsets of columns have been randomly
-# withheld from individuals = Missing Completely at random
+# This means, whole subsets of columns have been randomly withheld from individuals
+# = Missing Completely at Random (MCAR) with known mechanism 
 # Although our dataset is not from this timespan, we can still suspect that this methodology also applies to 2021.
 
 # Some columns have a high number of Missing Values (see Stage 1 output)
@@ -53,8 +53,12 @@ print(missing_df_sorted)
 # Then convert to 1s and 0s for distance calculation.
 missing_matrix <- model_data %>%
   select(-FUTSUPNO) %>% # Exclude the target variable from the analysis
-  is.na() %>%
-  as.matrix() + 0 # The `+ 0` converts TRUE/FALSE to 1/0
+  is.na()
+
+# Filter out columns that have no missing values at all before clustering
+cols_with_missing <-
+  colnames(missing_matrix)[colSums(missing_matrix) > 0]
+missing_matrix_filtered <- missing_matrix[, cols_with_missing]
 
 col_dist <- dist(t(missing_matrix), method = "euclidean")
 hclust_result <- hclust(col_dist, method = "ward.D2")
@@ -152,6 +156,126 @@ print(attitudes_summary)
 # A LOT of bias into the data.
 # -> Remove these columns.
 
-model_data %>% select(-any_of(attitudes_perceptions_cols))
+model_data <- model_data %>% select(-any_of(attitudes_perceptions_cols))
+cat("Attidues/ Perceptions Columns removed. Remaining columns:", ncol(model_data), "\n")
 
-# --- Stage 4: Handle Missing Values ---
+# --- Stage 4: Handle Missing Values for the 'Mindset' Cluster ---
+# Methodology:
+# 1. Create a binary flag 'Mindset_Asked' to permanently label rows based
+#    on the reason for missingness (split-sample vs. partial non-response).
+#    This captures the survey's design.
+# 2. Impute the remaining NA values in the mindset columns. We will turn the
+#    NAs into an explicit factor level '0' using the modern forcats function.
+
+cat("\n--- Stage 4: Creating 'Mindset_Asked' flag and imputing values ---\n")
+
+# Ensure the forcats library is loaded
+if (!require(forcats)) install.packages("forcats")
+library(forcats)
+
+# The columns we are targeting
+mindset_cols <- c("OPPISMyy", "PROACTyy", "CREATIVyy", "VISIONyy")
+
+model_data <- model_data %>%
+  mutate(
+    # Step 1: Create the 'Mindset_Asked' flag BEFORE imputation
+    Mindset_Asked = case_when(
+      rowSums(is.na(select(., all_of(mindset_cols)))) == length(mindset_cols) ~ "Not_Asked",
+      TRUE ~ "Asked"
+    ),
+    Mindset_Asked = as.factor(Mindset_Asked),
+
+    # Step 2: Impute the NA values
+    across(
+      all_of(mindset_cols),
+      ~ fct_na_value_to_level(., level = "Not_Answered")
+    )
+  )
+
+cat("Flag created and values for Mindset Cluster imputed \n")
+
+
+# FRFAILOP (= "Fear of failure (in 18-64 sample perceiving good opportunities to start a business)")
+# Information captured by:
+# FRFAILYY,  ("Fear of Failure"), age & OPPORTyy ("....perceiving good opportunities to start a business")
+
+# column is missing in 61.8% of cases and does not contain a lot of new information
+# -> drop the column
+model_data <- model_data %>% select(-FRFAILOP)
+
+cat("FRFAILOP column removed due to structural missingness. Remaining columns:", ncol(model_data), "\n")
+
+
+# --- 1. Handle High/Moderate Missingness Categorical Columns (>5%) ---
+# For these, we create a new factor level to treat "missing" as information.
+# This applies to: INDSUPyy, EASYSTyy, GEMHHINC, OPPORTyy, SUSKILyy
+high_missing_categorical <- c(
+  "INDSUPyy", "EASYSTyy", "GEMHHINC", "OPPORTyy", "SUSKILyy"
+)
+
+model_data <- model_data %>%
+  mutate(
+    across(
+      all_of(high_missing_categorical),
+      ~ fct_na_value_to_level(., level = "Unknown")
+    )
+  )
+
+cat("Handled high-missingness categorical columns by creating 'Unknown' level.\n")
+
+
+# --- 2. Handle High/Moderate Missingness Numeric Column: 'age' (5.9%) ---
+# We create a binary flag and then impute with the median.
+model_data <- model_data %>%
+  mutate(
+    age_is_missing = as.factor(ifelse(is.na(age), "Yes", "No")),
+    age = ifelse(is.na(age), median(age, na.rm = TRUE), age)
+  )
+
+cat("Handled 'age' by creating 'age_is_missing' flag and imputing median.\n")
+
+
+# --- 3. Handle Low Missingness Columns (<5%) ---
+# For these, simple median/mode imputation is safe and effective.
+
+# Define the columns
+low_missing_numeric <- c("hhsize")
+low_missing_categorical <- c(
+  "KNOWENyy", "cphhinc", "GEMEDUC", "GEMOCCU", "gender"
+)
+
+# Helper function to find the mode (most frequent value)
+get_mode <- function(x) {
+  ux <- unique(x[!is.na(x)])
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+# Impute numeric with median, categorical with mode
+model_data <- model_data %>%
+  mutate(
+    across(
+      all_of(low_missing_numeric),
+      ~ ifelse(is.na(.), median(., na.rm = TRUE), .)
+    ),
+    across(
+      all_of(low_missing_categorical),
+      ~ ifelse(is.na(.), get_mode(.), as.character(.))
+    )
+  ) %>%
+  # The previous step converts factors to characters, so we convert them back
+  mutate(across(all_of(low_missing_categorical), as.factor))
+
+
+cat("Handled low-missingness columns with median/mode imputation.\n")
+
+
+# --- Final Verification ---
+# Check if any missing values remain in the entire dataset.
+cat("\n--- Final Verification: Checking for any remaining NAs ---\n")
+remaining_nas <- colSums(is.na(model_data))
+if (all(remaining_nas == 0)) {
+  cat("Success! No missing values remain in the dataset.\n")
+} else {
+  cat("Warning: Some missing values still exist. Please review:\n")
+  print(remaining_nas[remaining_nas > 0])
+}
