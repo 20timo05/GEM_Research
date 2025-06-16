@@ -12,6 +12,9 @@
 #   Your model's findings on the importance of factors like fear of failure can be compared to the global and national report findings.
 # ===================================================================
 
+# for reproduceablity
+set.seed(42)
+
 library(dplyr)
 library(data.table)
 library(caret)
@@ -22,8 +25,10 @@ gem_data <- fread("data/GEM2021APSGlobalIndividualLevelData_15Feb2023.csv")
 
 # --- Stage 1: Initial Scoping ---
 # Objective: Filter the dataset to only include respondents where the target
-# variable is known. This defines our modeling population.
-model_data <- gem_data %>% filter(!is.na(FUTSUPNO)) # nrow(gem_data)=154_397 ---> nrow(model_data)=117_369
+# variable is known and their age falls into the defined 18-64 range.
+# This defines our modeling population.
+model_data <- gem_data %>% filter(!is.na(FUTSUPNO))
+model_data <- model_data %>% filter((age >= 18 & age <= 64) | is.na(age))
 cat("--- Data loaded. Rows with known target variable:", nrow(model_data), "---\n\n")
 
 
@@ -196,7 +201,9 @@ columns_to_drop_stage5 <- c(
 
   # Survey weights (not used for this classification task)
   # These are applied so that the sample is representative to the national population
-  # Could be explored for real world predictive power across the population, or comparing national statistics
+  # Could be explored for real world predictive power across the population, or comparing national statistics.
+  # (e.g., "25% of the German population intends to start a business",
+  # whereas the goal here is predicting the outcome for a given individual)
   "weight", "WEIGHT_L", "WEIGHT_A",
 
   # Survey process metadata
