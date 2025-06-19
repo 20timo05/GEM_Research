@@ -266,15 +266,15 @@ set.seed(42)
 # --- Run MissForest ---
 # The algorithm will iteratively use Random Forest to predict and fill the
 # missing values in the dataset until the imputed values converge.
-# This can take a few minutes, even with parallel processing.
-cat("Starting MissForest imputation... This may take a few minutes.\n")
+# This can take a few hours, even with parallel processing.
+cat("Starting MissForest imputation... This may take a few hours\n")
 
 # Note: missForest works on a matrix/dataframe. It will automatically
 # identify which columns have NAs and impute them.
 missForest_result <- missForest(
   model_data,
-  parallelize = "variables",
-  ntree = 50,
+  parallelize = "forests",
+  ntree = 100,
   maxiter = 6,
   verbose = TRUE
 )
@@ -314,19 +314,11 @@ if (all(remaining_nas == 0)) {
 # ===================================================================
 # To avoid re-running this entire time-consuming cleaning and imputation
 # process every time, we save the final, clean dataframe to a file.
-# We use saveRDS() because it perfectly preserves all R data types,
-# including factor levels, which is critical for our modeling scripts.
 
 cat("\n--- Stage 6: Saving cleaned data to disk ---\n")
 
-# Define the path for the cleaned data file
-# It's good practice to have a 'cleaned' subfolder in your data directory
 model_data_path <- "EDA/output/cleaned_model_data.rds"
-
-# Create the directory if it doesn't exist to prevent errors
 dir.create(dirname(model_data_path), showWarnings = FALSE, recursive = TRUE)
-
-# Save the single 'model_data' object
 saveRDS(model_data, file = model_data_path)
 
 cat("Cleaned data successfully saved to:", model_data_path, "\n")
