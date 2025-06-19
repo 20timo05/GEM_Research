@@ -84,7 +84,7 @@ cat(
   "to be removed.\n"
 )
 
-# Remove the outliers (affects <0.02% of data)
+# Remove the outliers (affects ~0.023% of data)
 model_data <- model_data %>%
   filter(hhsize <= threshold)
 
