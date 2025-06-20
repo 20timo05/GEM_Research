@@ -29,7 +29,7 @@ student_data <- student_data %>%
 set.seed(42)
 
 # --- Set the experiment name to keep results organized ---
-experiment_name <- "Experiment_XGBoost_Baseline"
+experiment_name <- "Experiment_XGBoost_ManualWeighting"
 output_base_dir <- "output" # Base folder for all experiments
 
 # Create full path for this experiment's output
@@ -79,9 +79,9 @@ xgb_spec <-
     trees = 500, # Fix the number of trees to a reasonable value
     tree_depth = tune(),
     learn_rate = tune(),
-    min_n = tune()
+    min_n = tune(),
   ) %>%
-  set_engine("xgboost") %>%
+  set_engine("xgboost", scale_pos_weight = 4.0) %>%
   set_mode("classification")
 
 # Combine the recipe and model into a single workflow object
