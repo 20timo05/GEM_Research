@@ -226,7 +226,7 @@ plot_sensitivity_specificity_tradeoff <- function(model_results,
     mutate(difference = abs(sensitivity - specificity)) %>%
     filter(difference == min(difference)) %>%
     arrange(desc(sensitivity)) %>%
-    slice(1)
+    .[1, ]
 
   tradeoff_data <- roc_data %>%
     select(.threshold, sensitivity, specificity) %>%

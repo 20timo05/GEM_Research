@@ -12,17 +12,24 @@
 library(tidymodels)
 library(dplyr)
 library(doParallel)
-# library(themis) # No longer needed for this experiment
+# install.packages("xgboost") # Make sure xgboost is installed
+library(xgboost)
 
 # Load our custom functions for evaluation and plotting
 source("./helper_functions.R")
 
 # Load the data (assuming it's created by your EDA script)
 source("EDA/eda_students.R")
+
+# ctryalp: MANY categories = much noise. Most categories have very low feature importance
+# Mindset_Asked: Based on survey design - not applicable to DIT Startup Campus
+student_data <- student_data %>%
+  select(-any_of(c("ctryalp", "Mindset_Asked")))
+
 set.seed(42)
 
 # --- Set the experiment name to keep results organized ---
-experiment_name <- "Experiment_RF_ReducedFeatures2"
+experiment_name <- "Experiment_XGBoost_Baseline"
 output_base_dir <- "output" # Base folder for all experiments
 
 # Create full path for this experiment's output
@@ -40,10 +47,6 @@ if (!dir.exists(experiment_output_dir)) {
 # --- 2. DATA SPLITTING (3-WAY SPLIT) & RESAMPLING ---
 
 # First, split off the final, held-out test set (e.g., 20%)
-
-# ctryalp: MANY categories = much noise. Most categories have very low feature importance
-# Mindset_Asked: Based on survey design - not applicable to DIT Startup Campus
-student_data <- student_data %>% select(-any_of(c("ctryalp", "Mindset_Asked"))) 
 data_split <- initial_split(student_data, prop = 0.80, strata = FUTSUPNO)
 test_data  <- testing(data_split)      # This is locked away until the very end
 train_val_data <- training(data_split)
@@ -62,7 +65,7 @@ cv_folds <- vfold_cv(train_data, v = 5, strata = FUTSUPNO)
 
 
 # --- 3. FEATURE ENGINEERING RECIPE ---
-# The recipe is now very simple. The imbalance is handled in the model engine.
+# The recipe is simple, as we are not using sampling methods.
 my_recipe <-
   recipe(FUTSUPNO ~ ., data = train_data) %>%
   step_dummy(all_nominal_predictors()) %>%
@@ -70,41 +73,47 @@ my_recipe <-
 
 
 # --- 4. MODEL SPECIFICATION & WORKFLOW ---
-# Define the model for this experiment.
-# We MANUALLY set the class.weights based on the 4-to-1 class ratio.
-rf_spec <-
-  rand_forest(
-    trees = 1000,
-    mtry = tune(),
+# Define the XGBoost model specification.
+xgb_spec <-
+  boost_tree(
+    trees = 500, # Fix the number of trees to a reasonable value
+    tree_depth = tune(),
+    learn_rate = tune(),
     min_n = tune()
   ) %>%
-  set_engine(
-    "ranger",
-    importance = "impurity",
-    class.weights = c("No" = 1.0, "Yes" = 4.0) # <<< THIS IS THE FIX
-  ) %>%
+  set_engine("xgboost") %>%
   set_mode("classification")
 
 # Combine the recipe and model into a single workflow object
-rf_workflow <- workflow() %>%
+xgb_workflow <- workflow() %>%
   add_recipe(my_recipe) %>%
-  add_model(rf_spec)
+  add_model(xgb_spec)
 
 
 # --- 5. HYPERPARAMETER TUNING ---
-# We are now only tuning mtry and min_n. This will be faster.
 # Set up parallel processing to speed things up
 registerDoParallel(cores = detectCores(logical = FALSE))
 
 # Define the metrics we care about
 metric_set_sens_spec <- metric_set(sens, yardstick::spec, roc_auc)
 
-# Tune only mtry and min_n
+# Create a tuning grid for the XGBoost parameters.
+# Using a Latin Hypercube grid for more random coverage of the space.
 set.seed(42)
-rf_tune_results <- tune_grid(
-  rf_workflow,
+xgb_grid <- grid_space_filling(
+  tree_depth(),
+  learn_rate(),
+  min_n(),
+  size = 15 # Number of combinations to try
+)
+
+
+# Tune the model using the cross-validation folds and our new grid
+set.seed(42)
+xgb_tune_results <- tune_grid(
+  xgb_workflow,
   resamples = cv_folds,
-  grid = 10, # Let tune_grid create a 10-combination grid automatically
+  grid = xgb_grid,
   metrics = metric_set_sens_spec,
   control = control_grid(save_pred = TRUE)
 )
@@ -113,15 +122,15 @@ rf_tune_results <- tune_grid(
 stopImplicitCluster()
 
 # View the best performing hyperparameter sets, ranked by AUC
-show_best(rf_tune_results, metric = "roc_auc")
+show_best(xgb_tune_results, metric = "roc_auc")
 
 
 # --- 6. SELECT AND TRAIN ON VALIDATION SET ---
 # Select the best hyperparameters based on CROSS-VALIDATION performance
-best_params <- select_best(rf_tune_results, metric = "roc_auc")
+best_params <- select_best(xgb_tune_results, metric = "roc_auc")
 
 # Finalize the workflow with these best parameters
-final_workflow <- finalize_workflow(rf_workflow, best_params)
+final_workflow <- finalize_workflow(xgb_workflow, best_params)
 
 # Train the finalized workflow on the FULL training set and evaluate on the VALIDATION set
 set.seed(42)
@@ -141,7 +150,7 @@ optimal_point_validation <- plot_sensitivity_specificity_tradeoff(
 # Evaluate performance on the VALIDATION set and generate the report
 evaluate_and_report_validation(
   validation_fit = validation_fit,
-  tune_results = rf_tune_results,
+  tune_results = xgb_tune_results,
   best_params = best_params,
   optimal_threshold = optimal_point_validation$.threshold,
   experiment_name = experiment_name,
@@ -149,11 +158,3 @@ evaluate_and_report_validation(
 )
 
 # --- END OF EXPERIMENT ---
-
-
-# List all Features based on Importance
-library(vip)
-final_ranger_model <- extract_fit_parsnip(validation_fit)
-importance_df <- vi(final_ranger_model)
-# Print the full list, sorted from most to least important
-print(importance_df, n = Inf) # n = Inf shows all rows
