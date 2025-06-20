@@ -1,0 +1,33 @@
+===============================================================
+                 EXPERIMENT REPORT: Experiment_RF_Baseline
+===============================================================
+Report generated on: 2025-06-20 16:00:37.185289
+
+--- CONFIGURATION ---
+Model Type: rand_forest
+Recipe Steps Included: c("double", "numeric"), c("factor", "unordered", "nominal")
+
+--- HYPERPARAMETER TUNING (on Training Set CV) ---
+Tuning Metric: roc_auc
+Best Hyperparameters Found: mtry = 5, min_n = 2, over_ratio = 1.0667
+
+--- VALIDATION SET PERFORMANCE ---
+Optimal Decision Threshold Applied: 0.3147
+
+** Core Metrics (Threshold Independent) **
+      Metric Estimate
+    accuracy   0.8419
+     roc_auc   0.8492
+ brier_class   0.1168
+
+** Performance at Optimal Threshold (with use-case descriptions) **
+Accuracy   : 0.7740  (Overall, what proportion of students did we classify correctly?)
+Sensitivity: 0.7740  (How many of the true founders did we find?)
+Specificity: 0.7739  (How well did we avoid contacting non-founders?)
+Precision  : 0.4510  (When we predict 'founder', how often are we right?)
+
+** Confusion Matrix (Validation Set) **
+          Truth
+Prediction  No Yes
+       No  671  47
+       Yes 196 161
