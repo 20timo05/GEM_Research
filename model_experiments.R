@@ -12,7 +12,7 @@
 library(tidymodels)
 library(dplyr)
 library(doParallel)
-library(themis) # For SMOTE
+# library(themis) # No longer needed for this experiment
 
 # Load our custom functions for evaluation and plotting
 source("./helper_functions.R")
@@ -21,7 +21,8 @@ source("./helper_functions.R")
 source("EDA/eda_students.R")
 set.seed(42)
 
-experiment_name <- "Experiment_RF_Baseline" # <<< CHANGE THIS FOR EACH NEW EXPERIMENT
+# --- Set the experiment name to keep results organized ---
+experiment_name <- "Experiment_RF_ManualWeights"
 output_base_dir <- "output" # Base folder for all experiments
 
 # Create full path for this experiment's output
@@ -57,24 +58,27 @@ cv_folds <- vfold_cv(train_data, v = 5, strata = FUTSUPNO)
 
 
 # --- 3. FEATURE ENGINEERING RECIPE ---
-# Define the preprocessing steps for this experiment
+# The recipe is now very simple. The imbalance is handled in the model engine.
 my_recipe <-
   recipe(FUTSUPNO ~ ., data = train_data) %>%
   step_dummy(all_nominal_predictors()) %>%
-  step_zv(all_predictors()) %>%
-  # Example: Tuning the over_ratio for SMOTE
-  step_smote(FUTSUPNO, over_ratio = tune(), skip = TRUE)
+  step_zv(all_predictors())
 
 
 # --- 4. MODEL SPECIFICATION & WORKFLOW ---
-# Define the model for this experiment
+# Define the model for this experiment.
+# We MANUALLY set the class.weights based on the 4-to-1 class ratio.
 rf_spec <-
   rand_forest(
     trees = 1000,
     mtry = tune(),
     min_n = tune()
   ) %>%
-  set_engine("ranger", importance = "impurity") %>%
+  set_engine(
+    "ranger",
+    importance = "impurity",
+    class.weights = c("No" = 1.0, "Yes" = 4.0) # <<< THIS IS THE FIX
+  ) %>%
   set_mode("classification")
 
 # Combine the recipe and model into a single workflow object
@@ -84,39 +88,19 @@ rf_workflow <- workflow() %>%
 
 
 # --- 5. HYPERPARAMETER TUNING ---
+# We are now only tuning mtry and min_n. This will be faster.
 # Set up parallel processing to speed things up
 registerDoParallel(cores = detectCores(logical = FALSE))
 
 # Define the metrics we care about
 metric_set_sens_spec <- metric_set(sens, yardstick::spec, roc_auc)
 
-# <<< THIS IS THE FIX >>>
-# Manually define a grid that includes ALL tunable parameters from both
-# the model spec (mtry, min_n) and the recipe (over_ratio).
-
-# First, get the parameter objects from the workflow
-all_params <- extract_parameter_set_dials(rf_workflow)
-
-# Update the range for 'mtry' if needed. The default is 1 to number of predictors.
-# Let's set a more reasonable upper bound, for example 50.
-all_params <- all_params %>%
-  update(mtry = mtry(range = c(5L, 50L)))
-
-# Create a grid with combinations of all three parameters.
-# We will test fewer levels for each to keep the total manageable.
-set.seed(42)
-combined_grid <- grid_regular(
-  all_params,
-  levels = 4 # This will create 4x4x4 = 64 combinations, adjust as needed for time
-)
-
-
-# Tune the model using the cross-validation folds and our new combined grid
+# Tune only mtry and min_n
 set.seed(42)
 rf_tune_results <- tune_grid(
   rf_workflow,
   resamples = cv_folds,
-  grid = combined_grid, # <<< Pass the new combined grid here
+  grid = 10, # Let tune_grid create a 10-combination grid automatically
   metrics = metric_set_sens_spec,
   control = control_grid(save_pred = TRUE)
 )
@@ -136,22 +120,18 @@ best_params <- select_best(rf_tune_results, metric = "roc_auc")
 final_workflow <- finalize_workflow(rf_workflow, best_params)
 
 # Train the finalized workflow on the FULL training set and evaluate on the VALIDATION set
-# This gives us our validation performance before touching the test set
 set.seed(42)
 validation_fit <- last_fit(final_workflow, val_split)
 
 
 # --- 7. EVALUATE ON VALIDATION SET & GENERATE REPORT ---
-# This is the final step for an individual experiment.
-# All decisions about which model is "better" are made from this report.
-
 # Find the optimal threshold using the VALIDATION set predictions
 optimal_point_validation <- plot_sensitivity_specificity_tradeoff(
   model_results = validation_fit,
   truth_col = FUTSUPNO,
   prob_col = .pred_Yes,
   output_dir = experiment_output_dir,
-  plot_title_suffix = "(Validation Set)" # Add suffix to plot title
+  plot_title_suffix = "(Validation Set)"
 )
 
 # Evaluate performance on the VALIDATION set and generate the report
