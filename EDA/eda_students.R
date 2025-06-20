@@ -17,6 +17,12 @@
 library(tidyverse)
 library(patchwork)
 
+output_dir <- "output/EDA_Students_Plots"
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+cat("Saving plots to:", output_dir, "\n")
+
 
 plot_univariate_dist <- function(data,
                                  feature_col,
@@ -72,8 +78,8 @@ model_data <- model_data %>%
 # ===================================================================
 cat("\n--- Filtering data for Student-Specific Analysis ---\n")
 student_data <- model_data %>%
-  filter(GEMOCCU == "Student")
-
+  filter(GEMOCCU == "Student") %>% 
+  select(-any_of(c("GEMOCCU")))
 
 # ===================================================================
 # --- Stage 1: Target Variable Analysis (Students) ---
@@ -418,8 +424,8 @@ plot_intention_by_cat(
 # This effect is just as strong, if not stronger, than in the general population.
 # DIT can leverage this by framing entrepreneurship as a viable, long-term
 # career path, not just a short-term project.
-
-student_data,
+plot_intention_by_cat(
+  student_data,
   INDSUPyy,
   title = "Intentions by Perceived Societal Support (Students Only)",
   subtitle = "Societal support for independence is linked to higher student intention.",
