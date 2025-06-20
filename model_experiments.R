@@ -22,7 +22,7 @@ source("EDA/eda_students.R")
 set.seed(42)
 
 # --- Set the experiment name to keep results organized ---
-experiment_name <- "Experiment_RF_ReducedFeatures"
+experiment_name <- "Experiment_RF_ReducedFeatures2"
 output_base_dir <- "output" # Base folder for all experiments
 
 # Create full path for this experiment's output
@@ -40,7 +40,10 @@ if (!dir.exists(experiment_output_dir)) {
 # --- 2. DATA SPLITTING (3-WAY SPLIT) & RESAMPLING ---
 
 # First, split off the final, held-out test set (e.g., 20%)
-student_data <- student_data %>% select(-any_of(c("ctryalp"))) # MANY categories = much noise. Most categories have very low feature importance
+
+# ctryalp: MANY categories = much noise. Most categories have very low feature importance
+# Mindset_Asked: Based on survey design - not applicable to DIT Startup Campus
+student_data <- student_data %>% select(-any_of(c("ctryalp", "Mindset_Asked"))) 
 data_split <- initial_split(student_data, prop = 0.80, strata = FUTSUPNO)
 test_data  <- testing(data_split)      # This is locked away until the very end
 train_val_data <- training(data_split)
@@ -146,3 +149,11 @@ evaluate_and_report_validation(
 )
 
 # --- END OF EXPERIMENT ---
+
+
+# List all Features based on Importance
+library(vip)
+final_ranger_model <- extract_fit_parsnip(validation_fit)
+importance_df <- vi(final_ranger_model)
+# Print the full list, sorted from most to least important
+print(importance_df, n = Inf) # n = Inf shows all rows
