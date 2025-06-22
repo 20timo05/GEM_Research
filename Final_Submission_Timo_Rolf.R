@@ -630,6 +630,8 @@ if (file.exists(cleaned_model_data_name)) {
 
   # Note: missForest works on a matrix/dataframe. It will automatically
   # identify which columns have NAs and impute them.
+  # 2nd Note: Reduced ntree and maxiter from defaults due to time constraints.
+  # For a final production model, these could be increased and tuned.
   missForest_result <- missForest(
     model_data,
     parallelize = "forests",
@@ -945,6 +947,10 @@ model_data <- model_data %>%
   filter(hhsize <= threshold)
 
 # filter for Target Subpopulation
+# Methodological Consideration: Filter Timing
+# Using the Larger Dataset for Imputation created more robust models for filling missing values.
+# Also the following EDA was conducted on both Global and Student Subpopulation.
+# However, this could result in Target-Leakage as the Imputed Values had access to non-student rows.
 student_data <- model_data %>%
   filter(GEMOCCU == "Student") %>% 
   select(-any_of(c("GEMOCCU")))
@@ -2382,7 +2388,12 @@ cat("--- FINAL RETRAINING & EVALUATION ON TEST SET ---\n")
 cat("===============================================================\n")
 
 # --- Identify the best performing experiment configuration ---
-# Based on your analysis, this is 'Experiment_6_RF_ManualWeights'
+# Based on the analysis, this is 'Experiment_6_RF_ManualWeights'.
+# It achieved the highest ROC_AUC with 0.7879 followed closely by Logistic Regression.
+# Despite having poorer Interpretability, we still chose the RandomForest as we are
+# interested in uncovering the complex psychological patterns that drive
+# Entrepreneurship. A logistic Regression is inherently limited to finding linear
+# patterns. We combat the issue of Interpretability using aggregated SHAP plots later.
 best_experiment_name <- "Experiment_6_RF_ManualWeights"
 best_config <- Find(function(x) x$name == best_experiment_name, experiment_configs)
 best_experiment_output_dir <- file.path(output_base_dir, "Final_Evaluation")
@@ -2514,7 +2525,7 @@ test_data_classified <- test_data %>%
   left_join(classified_predictions %>% select(student_id, classification_type), by = "student_id")
 
 # --- Create the FINAL ANALYSIS POOL ---
-unwanted_values <- c("Not Answered", "Unknown", "Refused")
+unwanted_values <- c("Unknown", "Refused", "Refused_Answer", "Not_Applicable")
 final_analysis_pool <- test_data_classified %>%
   filter(
     # Keep only correctly classified students
@@ -2548,8 +2559,10 @@ if (nrow(final_analysis_pool) > 0) {
     new_observation = student_for_analysis,
     type = "shap"
   )
-  
+
+  custom_colors <- c("-1" = "#B22222", "1" = "#2E8B57") # firebrick and seagreen
   shap_waterfall_plot <- plot(shap_explanation_single, max_features = 15, show_boxplots = FALSE) +
+    ggplot2::scale_fill_manual(values = custom_colors, guide = "none") +
     labs(
       title = "SHAP Explanation for a Correctly Classified Student",
       subtitle = "How each feature pushed the prediction from the baseline average"
@@ -2580,6 +2593,7 @@ if (nrow(final_analysis_pool) > 0) {
 
   # Generate and save the aggregate plot
   shap_combined_plot <- plot(shap_explanation_combined, max_features = 20) +
+  ggplot2::scale_fill_manual(values = custom_colors, guide = "none") +
     labs(
       title = "Aggregate SHAP Plot for Correctly Classified Students (TP & TN)",
       subtitle = paste("Top features driving correct predictions (Sample Size:", sample_size, ")")
