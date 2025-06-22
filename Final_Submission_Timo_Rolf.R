@@ -24,7 +24,9 @@ required_packages <- c(
   "rnaturalearth",    # Provides world map data for plotting.
   "rnaturalearthdata",# The data backbone for rnaturalearth.
   "viridis",          # Provides colorblind-friendly color palettes.
-  "missForest"        # For MissForest Imputation    
+  "missForest",       # For MissForest Imputation
+  "DALEX",            # For SHAP Plots
+  "DALEXtra"          # For SHAP Plots
 )
 
 for (pkg in required_packages) {
@@ -75,9 +77,11 @@ cat("--- Stage 1.0: Data loaded successfully from the root directory.\n")
 # Objective: Filter the dataset to only include respondents where the target
 # variable is known and their age falls into the defined 18-64 range.
 # This defines our modeling population.
+output_base_dir <- "output_final"
+cleaned_model_data_name = sprintf("%s/cleaned_model_data.rds", output_base_dir)
 
-if (file.exists("output_final/cleaned_model_data.rds")) {
-  model_data <- readRDS("output_final/cleaned_model_data.rds")
+if (file.exists(cleaned_model_data_name)) {
+  model_data <- readRDS(cleaned_model_data_name)
 
 } else {
 
@@ -521,12 +525,9 @@ if (file.exists("output_final/cleaned_model_data.rds")) {
 
   model_data <- model_data %>%
     mutate(
-      # Methodology:
-      # 1. Create a binary flag 'Mindset_Asked' to permanently label rows based
-      #    on the reason for missingness (split-sample vs. partial non-response).
-      #    This captures the survey's design.
-      # 2. Impute the remaining NA values in the mindset columns. We will turn the
-      #    NAs into an explicit factor level 'Not_Answered' using the modern forcats function.
+      # --- Step 1: Create the 'Mindset_Asked' Flag ---
+      # This correctly identifies respondents based on the survey's split-sample design.
+      # This step remains unchanged.
       Mindset_Asked = as.factor(
         ifelse(
           rowSums(is.na(select(., all_of(mindset_cols)))) == length(mindset_cols),
@@ -535,11 +536,22 @@ if (file.exists("output_final/cleaned_model_data.rds")) {
         )
       ),
 
-      # Step 2: Impute the NA values
-      across(
-        all_of(mindset_cols),
-        ~ fct_na_value_to_level(., level = "Not_Answered")
-      ),
+      # --- Step 2: Recode Mindset Columns with Detailed Missingness ---
+      # This is the new, more precise logic. It replaces the original 'across' call.
+      across(all_of(mindset_cols), ~ {
+        # The 'case_when' function checks conditions in order.
+        factor(case_when(
+          # If the respondent was NOT asked, the question is not applicable to them.
+          Mindset_Asked == "Not_Asked" ~ "Not_Applicable",
+          
+          # If the respondent WAS asked, but the value is still NA, they refused to answer.
+          Mindset_Asked == "Asked" & is.na(.) ~ "Refused_Answer",
+          
+          # Otherwise (they were asked and they answered), keep their original response.
+          # We convert it to character to ensure it combines with the other text levels.
+          TRUE ~ as.character(.) 
+        ))
+      }),
 
       # --- Handle High/Moderate Missingness Categorical Columns (>5%) ---
       # For these, we create a new factor level to treat "missing" as information.
@@ -556,8 +568,8 @@ if (file.exists("output_final/cleaned_model_data.rds")) {
     )
 
 
-  cat("\n--- Stage 1.11: Handled high-missingness categorical columns by creating 'Unknown' level. ---\n")
-  cat("\n--- Stage 1.11: Engineering features from missingness patterns: Created 'Mindset_Asked' and 'age_is_missing' flags. ---\n")
+  cat("--- Stage 1.11: 'Mindset_Asked' flag created. ---\n")
+  cat("--- Stage 1.11: Mindset columns recoded into 'Not_Applicable' and 'Refused_Answer'. ---\n")
 
 
   # --- Stage 1.12: Advanced Imputation with MissForest ---
@@ -621,8 +633,8 @@ if (file.exists("output_final/cleaned_model_data.rds")) {
   missForest_result <- missForest(
     model_data,
     parallelize = "forests",
-    ntree = 75,
-    maxiter = 5,
+    ntree = 30, # <-- default is 100. turn up if more time is available
+    maxiter = 3, # <- default is 10. turn up if more time is available
     verbose = TRUE
   )
 
@@ -664,8 +676,7 @@ if (file.exists("output_final/cleaned_model_data.rds")) {
 
   cat("\n--- Stage 1.13: Saving cleaned data to disk ---\n")
 
-  model_data_path <- "output_final/cleaned_model_data.rds"
-  dir.create(dirname(model_data_path), showWarnings = FALSE, recursive = TRUE)
+  dir.create(dirname(cleaned_model_data_name), showWarnings = FALSE, recursive = TRUE)
   saveRDS(model_data, file = model_data_path)
 
   cat("Cleaned data successfully saved to:", model_data_path, "\n")
@@ -686,7 +697,8 @@ relabel_likert <- function(variable) {
     "Neither",
     "Somewhat Agree",
     "Strongly Agree",
-    "Not Answered"
+    "Refused_Answer",
+    "Not_Applicable"
   )
 
   factor(
@@ -696,7 +708,10 @@ relabel_likert <- function(variable) {
       variable == "3" ~ "Neither",
       variable == "4" ~ "Somewhat Agree",
       variable == "5" ~ "Strongly Agree",
-      TRUE ~ "Not Answered"
+      variable == "Refused_Answer" ~ "Refused_Answer",
+      variable == "Not_Applicable" ~ "Not_Applicable",
+      # Add a fallback just in case, though it shouldn't be needed
+      TRUE ~ "Refused_Answer"
     ),
     levels = likert_levels,
     ordered = TRUE
@@ -2013,10 +2028,9 @@ plot_sensitivity_specificity_tradeoff <- function(model_results,
 # ===================================================================
 
 # --- Stage 4.0: Preprocessing for Real World Use --- 
-# ctryalp: MANY categories = much noise. Most categories have very low feature importance
-# Mindset_Asked: Based on survey design - not applicable to DIT Startup Campus
-student_data <- student_data %>%
-  select(-any_of(c("ctryalp", "Mindset_Asked")))
+# ctryalp: Experiments showed: MANY categories = much noise. Most categories have very low feature importance
+# WBINC can be used as PROXY
+student_data <- student_data %>% select(-any_of(c("ctryalp")))
 
 set.seed(42)
 
@@ -2203,7 +2217,8 @@ list(
 )
 
 
-output_base_dir <- "output_final"
+set.seed(42)
+bayes_ctrl <- control_bayes(save_pred = TRUE, verbose = FALSE, seed = 42)
 metric_set_sens_spec <- metric_set(sens, spec, roc_auc)
 
 cores_to_use <- parallel::detectCores() - 1
@@ -2223,7 +2238,6 @@ for (config in experiment_configs) {
   
   current_recipe <- config$recipe_func(train_val_data)
   current_model_spec <- config$model_spec
-  current_grid <- config$grid_func()
   
   current_workflow <- workflow() %>%
     add_recipe(current_recipe) %>%
@@ -2269,5 +2283,315 @@ cat("\n\n--- ALL EXPERIMENTS COMPLETE ---\n")
 
 
 
-# @TODO
-# Make informed decision for best model and retrain on train+val dataset and evaluate on test.
+
+# ===================================================================
+# --- SECTION 5: Final Model Training & Evaluation ---
+# ===================================================================
+# Objective: We will take the best-performing model identified from the
+# experiments, retrain it on the complete training and validation dataset, and
+# then perform a final evaluation on the held-out test set. This provides a
+# definitive assessment of the model's generalization performance.
+
+# --- Helper Function for Final Test Set Evaluation ---
+
+#' Evaluate, Plot, and Report Final Performance on the Test Set
+#'
+#' Takes the final fitted model, evaluates it on the test set, generates
+#' plots, and appends the final results to the experiment's report.
+#'
+#' @param final_fit A model workflow object fitted on the full train+val data.
+#' @param test_data The held-out test dataset.
+#' @param optimal_threshold The numeric decision threshold from the validation run.
+#' @param experiment_name The string name of the winning experiment.
+#' @param output_dir The directory where final plots and reports are saved.
+evaluate_and_report_test <- function(final_fit,
+                                     test_data,
+                                     optimal_threshold,
+                                     experiment_name,
+                                     output_dir) {
+
+  # --- 1. GET PREDICTIONS ON THE TEST SET ---
+  test_predictions <- predict(final_fit, new_data = test_data, type = "prob") %>%
+    bind_cols(test_data %>% select(FUTSUPNO)) # Add truth column
+
+  # --- 2. CALCULATE METRICS AT OPTIMAL THRESHOLD ---
+  predictions_reclassified <- test_predictions %>%
+    mutate(.pred_class_optimal = factor(ifelse(.pred_Yes >= optimal_threshold, "Yes", "No"), levels = c("No", "Yes")))
+
+  conf_matrix <- conf_mat(predictions_reclassified, truth = FUTSUPNO, estimate = .pred_class_optimal)
+
+  # Extract values from confusion matrix
+  tn <- conf_matrix$table[1, 1]; fn <- conf_matrix$table[1, 2]
+  fp <- conf_matrix$table[2, 1]; tp <- conf_matrix$table[2, 2]
+
+  # Calculate key metrics
+  sensitivity <- tp / (tp + fn)
+  specificity <- tn / (tn + fp)
+  precision <- tp / (tp + fp)
+  accuracy <- (tp + tn) / (tp + tn + fp + fn)
+  roc_auc_val <- roc_auc(test_predictions, truth = FUTSUPNO, .pred_Yes, event_level = "second")$.estimate
+
+  # --- 3. GENERATE AND SAVE FINAL PLOTS (from Test Set) ---
+  roc_data <- test_predictions %>% roc_curve(FUTSUPNO, .pred_Yes, event_level = "second")
+
+  # Final ROC Curve
+  roc_plot_test <- ggplot(roc_data, aes(x = 1 - specificity, y = sensitivity)) +
+    geom_abline(linetype = "dashed", color = "grey70", linewidth = 0.8) +
+    geom_line(color = "#00F2FF", linewidth = 1.2, alpha = 0.8) +
+    labs(
+      title = "Final ROC Curve (Held-Out Test Set)",
+      subtitle = paste("Test Set AUC =", round(roc_auc_val, 3)),
+      x = "1 - Specificity",
+      y = "Sensitivity"
+    ) +
+    coord_equal() +
+    plot_theme
+
+  # Final Variable Importance Plot (from model trained on train+val)
+  vip_plot_final <- final_fit %>%
+    extract_fit_parsnip() %>%
+    vip(num_features = 20, geom = "col") +
+    labs(title = "Final Top 20 Predictors (Model Trained on All Data)") +
+    theme_minimal() +
+    plot_theme
+
+  print(roc_plot_test)
+  print(vip_plot_final)
+
+  # Save plots to the best model's output directory
+  ggsave(filename = file.path(output_dir, "roc_curve_FINAL_TEST.png"), plot = roc_plot_test, width = 8, height = 8)
+  ggsave(filename = file.path(output_dir, "variable_importance_plot_FINAL.png"), plot = vip_plot_final, width = 10, height = 7)
+  cat(paste0("Final plots saved to: ", output_dir, "\n"))
+
+
+  # --- 4. APPEND FINAL REPORT (using existing helper function) ---
+  # This function handles console output and appending to report.txt
+  report_final_test_performance(
+      test_predictions = test_predictions,
+      optimal_threshold = optimal_threshold,
+      output_dir = output_dir
+  )
+}
+
+
+# ===================================================================
+# --- Stage 5.1: RETRAIN AND EVALUATE THE WINNING MODEL ---
+# ===================================================================
+cat("\n\n===============================================================\n")
+cat("--- FINAL RETRAINING & EVALUATION ON TEST SET ---\n")
+cat("===============================================================\n")
+
+# --- Identify the best performing experiment configuration ---
+# Based on your analysis, this is 'Experiment_6_RF_ManualWeights'
+best_experiment_name <- "Experiment_6_RF_ManualWeights"
+best_config <- Find(function(x) x$name == best_experiment_name, experiment_configs)
+best_experiment_output_dir <- file.path(output_base_dir, "Final_Evaluation")
+if (!dir.exists(best_experiment_output_dir)) {
+    dir.create(best_experiment_output_dir, recursive = TRUE)
+  }
+
+# --- Re-create the workflow for the best model ---
+best_workflow <- workflow() %>%
+  add_recipe(best_config$recipe_func(train_val_data)) %>%
+  add_model(best_config$model_spec)
+
+# --- Re-run a quick tuning process on the FULL train+val data to find the absolute best parameters ---
+# This is more robust than using parameters found on a smaller subset.
+cat("\n--- Step 1: Re-tuning best model on the complete train+val dataset ---\n")
+set.seed(42)
+final_cv_folds <- vfold_cv(train_val_data, v = 10, strata = FUTSUPNO) # 10 folds for robustness
+
+# === RE-ENABLE MULTIPROCESSING FOR THE FINAL TUNE ===
+cat("Setting up parallel processing...\n")
+registerDoFuture()
+plan(multisession, workers = cores_to_use) # 'cores_to_use' was defined in Section 4
+
+final_tune_results <- tune_bayes(
+  best_workflow,
+  resamples = final_cv_folds,
+  param_info = best_config$param_grid,
+  initial = 10,
+  iter = 30,
+  metrics = metric_set(roc_auc),
+  control = control_bayes(save_pred = TRUE, verbose = FALSE, seed = 42)
+)
+
+# === SHUT DOWN THE PARALLEL BACKEND ===
+plan(sequential)
+cat("Parallel processing shut down.\n")
+
+best_final_params <- select_best(final_tune_results, metric = "roc_auc")
+cat("\nBest hyperparameters found for the final model:\n")
+print(best_final_params)
+
+final_workflow <- finalize_workflow(best_workflow, best_final_params)
+
+# --- Step 2: Determine the Optimal Threshold from the ORIGINAL Validation Set ---
+# We must use the threshold found from the validation set during the experiment
+# phase to avoid data leakage from the test set.
+cat("\n--- Step 2: Recalculating optimal threshold from the original validation run ---\n")
+set.seed(42)
+# Re-run `last_fit` on the original train/validation split to get validation predictions
+validation_run_fit <- last_fit(final_workflow, val_split)
+
+# Use the plotting function to find the crossover point on the validation set
+optimal_point_final <- plot_sensitivity_specificity_tradeoff(
+  model_results = validation_run_fit,
+  truth_col = FUTSUPNO,
+  prob_col = .pred_Yes,
+  output_dir = best_experiment_output_dir,
+  plot_title_suffix = "(Recalculated from Validation Set for Final Model)"
+)
+final_optimal_threshold <- optimal_point_final$.threshold
+cat(sprintf("\nOptimal Threshold determined from validation set: %.4f\n", final_optimal_threshold))
+
+
+# --- Step 3: Train the final model on the ENTIRE train+val dataset ---
+cat("\n--- Step 3: Fitting the final model on all train+val data ---\n")
+set.seed(42)
+final_model_fit <- fit(final_workflow, data = train_val_data)
+cat("Final model training complete.\n")
+
+# --- Step 4: Perform final evaluation on the held-out test set ---
+cat("\n--- Step 4: Evaluating final model on the unseen test set ---\n")
+evaluate_and_report_test(
+  final_fit = final_model_fit,
+  test_data = test_data,
+  optimal_threshold = final_optimal_threshold,
+  experiment_name = best_experiment_name,
+  output_dir = best_experiment_output_dir
+)
+
+cat("\n\n--- FINAL ANALYSIS COMPLETE ---\n")
+
+
+
+# ===================================================================
+# --- SECTION 6: MODEL EXPLAINABILITY WITH SHAP PLOTS ---
+# ===================================================================
+
+# --- Step 1: Create a DALEX explainer object ---
+# This remains the same.
+cat("\n--- Creating DALEX explainer for the final model ---\n")
+
+explainer_rf <- explain(
+  model = final_model_fit,
+  data = train_val_data %>% select(-FUTSUPNO),
+  y = as.numeric(train_val_data$FUTSUPNO == "Yes"),
+  label = "Random Forest Final",
+  predict_function = function(model, newdata) {
+    predict(model, new_data = newdata, type = "prob")$.pred_Yes
+  }
+)
+cat("Explainer created successfully.\n")
+
+
+# --- Step 2: Create a Unified Pool of Students for Analysis ---
+# To improve efficiency, we will create ONE pool of students that contains
+# only correctly classified (TP & TN) individuals with complete data.
+# Both the single-student plot and the aggregate plot will use this pool.
+cat("\n\n--- Creating a unified analysis pool of correctly classified students with complete data ---\n")
+
+# Get predictions for the test set to identify TP & TN
+test_set_predictions <- predict(final_model_fit, new_data = test_data, type = "prob") %>%
+  bind_cols(test_data %>% select(FUTSUPNO)) %>%
+  mutate(student_id = row_number())
+
+# Classify predictions
+classified_predictions <- test_set_predictions %>%
+  mutate(
+    .pred_class_optimal = factor(ifelse(.pred_Yes >= final_optimal_threshold, "Yes", "No"), levels = c("No", "Yes")),
+    classification_type = case_when(
+      FUTSUPNO == "Yes" & .pred_class_optimal == "Yes" ~ "True Positive",
+      FUTSUPNO == "No"  & .pred_class_optimal == "No"  ~ "True Negative",
+      TRUE ~ "Incorrectly Classified"
+    )
+  )
+
+# Join classifications back to the original data
+test_data_classified <- test_data %>%
+  mutate(student_id = row_number()) %>%
+  left_join(classified_predictions %>% select(student_id, classification_type), by = "student_id")
+
+# --- Create the FINAL ANALYSIS POOL ---
+unwanted_values <- c("Not Answered", "Unknown", "Refused")
+final_analysis_pool <- test_data_classified %>%
+  filter(
+    # Keep only correctly classified students
+    classification_type %in% c("True Positive", "True Negative"),
+    # AND ensure they have complete data across all relevant columns
+    across(
+      .cols = where(is.factor) | where(is.character),
+      .fns = ~ !(.x %in% unwanted_values)
+    )
+  )
+
+cat("Prediction outcomes on the test set:\n")
+print(table(classified_predictions$classification_type))
+cat(sprintf("\nCreated final analysis pool with %d correctly classified students who have complete data.\n", nrow(final_analysis_pool)))
+
+
+# --- Step 3: Generate All SHAP Plots from the Unified Pool ---
+# We will now generate both plots. This entire step is skipped if the pool is empty.
+
+if (nrow(final_analysis_pool) > 0) {
+  
+  # --- 3a. Single Student Waterfall Plot ---
+  cat("\n\n--- Generating SHAP Waterfall plot for a single student from the analysis pool ---\n")
+  set.seed(42) # for reproducible choice
+  student_for_analysis <- final_analysis_pool %>% sample_n(1)
+  
+  cat(sprintf("Selected one student (Classification: %s) for the waterfall plot.\n", student_for_analysis$classification_type))
+
+  shap_explanation_single <- predict_parts(
+    explainer = explainer_rf,
+    new_observation = student_for_analysis,
+    type = "shap"
+  )
+  
+  shap_waterfall_plot <- plot(shap_explanation_single, max_features = 15, show_boxplots = FALSE) +
+    labs(
+      title = "SHAP Explanation for a Correctly Classified Student",
+      subtitle = "How each feature pushed the prediction from the baseline average"
+    ) +
+    plot_theme
+    
+  output_filename_single_shap <- file.path(best_experiment_output_dir, "SHAP_Waterfall_Single_Correct_Student.png")
+  ggsave(filename = output_filename_single_shap, plot = shap_waterfall_plot, width = 12, height = 8, dpi = 300)
+  cat(sprintf("SHAP waterfall plot saved to: %s\n", output_filename_single_shap))
+
+  # --- 3b. Aggregate Summary Plot ---
+  cat("\n\n--- Generating Aggregate SHAP Plot for a sample from the analysis pool ---\n")
+  sample_size <- min(200, nrow(final_analysis_pool))
+  set.seed(123) # Use a different seed for the aggregate sample
+  analysis_sample <- final_analysis_pool %>% sample_n(sample_size)
+  
+  cat(sprintf("Analyzing a random sample of %d students from the pool.\n", sample_size))
+  
+  # Setup and run parallel processing
+  cat("Calculating aggregate SHAP values... (this may take a moment)\n")
+  registerDoFuture()
+  plan(multisession, workers = cores_to_use)
+  
+  shap_explanation_combined <- predict_parts(explainer = explainer_rf, new_observation = analysis_sample, type = "shap")
+  
+  plan(sequential)
+  cat("Calculation complete.\n")
+
+  # Generate and save the aggregate plot
+  shap_combined_plot <- plot(shap_explanation_combined, max_features = 20) +
+    labs(
+      title = "Aggregate SHAP Plot for Correctly Classified Students (TP & TN)",
+      subtitle = paste("Top features driving correct predictions (Sample Size:", sample_size, ")")
+    ) +
+    plot_theme
+  
+  output_filename_shap_combined <- file.path(best_experiment_output_dir, "SHAP_Aggregate_Correct_Predictions.png")
+  ggsave(filename = output_filename_shap_combined, plot = shap_combined_plot, width = 12, height = 10, dpi = 300)
+  cat(sprintf("Combined SHAP plot saved to: %s\n", output_filename_shap_combined))
+  
+} else {
+  cat("\nWARNING: The final analysis pool is empty. No SHAP plots can be generated.\n")
+}
+
+cat("\n\n--- SHAP ANALYSIS COMPLETE ---\n")

@@ -1,0 +1,33 @@
+===============================================================
+                 EXPERIMENT REPORT: Experiment_9_XGBoost_ManualWeights
+===============================================================
+Report generated on: 2025-06-22 12:53:15.942775
+
+--- CONFIGURATION ---
+Model Type: boost_tree
+Recipe Steps Included: c("double", "numeric"), c("factor", "unordered", "nominal")
+
+--- HYPERPARAMETER TUNING (on Training Set CV) ---
+Tuning Metric: roc_auc
+Best Hyperparameters Found: trees = 338, min_n = 2, tree_depth = 13, learn_rate = 0.0068
+
+--- VALIDATION SET PERFORMANCE ---
+Optimal Decision Threshold Applied: 0.1082
+
+** Core Metrics (Threshold Independent) **
+      Metric Estimate
+    accuracy   0.8188
+     roc_auc   0.7698
+ brier_class   0.1341
+
+** Performance at Optimal Threshold (with use-case descriptions) **
+Accuracy   : 0.7119  (Overall, what proportion of students did we classify correctly?)
+Sensitivity: 0.7115  (How many of the true founders did we find?)
+Specificity: 0.7120  (How well did we avoid contacting non-founders?)
+Precision  : 0.3719  (When we predict 'founder', how often are we right?)
+
+** Confusion Matrix (Validation Set) **
+          Truth
+Prediction  No Yes
+       No  618  60
+       Yes 250 148

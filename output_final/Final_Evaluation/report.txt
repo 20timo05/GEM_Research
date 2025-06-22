@@ -1,0 +1,19 @@
+
+
+===============================================================
+--- FINAL UNBIASED PERFORMANCE ON HELD-OUT TEST SET ---
+===============================================================
+Threshold determined from validation set (0.2313) was applied.
+
+** Final Test Set Metrics **
+Test Set AUC : 0.7602
+Accuracy     : 0.7125
+Sensitivity  : 0.6552
+Specificity  : 0.7263
+Precision    : 0.3654
+
+** Final Test Set Confusion Matrix **
+          Truth
+Prediction  No Yes
+       No  788  90
+       Yes 297 171
