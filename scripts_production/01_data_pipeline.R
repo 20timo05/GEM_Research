@@ -113,23 +113,30 @@ set.seed(42)
 
 cat("Starting MissForest imputation... This may take a few hours\n")
 
+# Identify columns to exclude from imputation (Metadata/IDs)
+cols_to_exclude <- c("ctryalp") 
+
+# Split the data
+data_metadata <- model_data %>% select(all_of(cols_to_exclude))
+data_for_imputation <- model_data %>% select(-all_of(cols_to_exclude))
+
+# Convert to dataframe for missForest
+data_for_imputation_df <- as.data.frame(data_for_imputation)
+
 # Note: missForest works on a matrix/dataframe. It will automatically
 # identify which columns have NAs and impute them.
 # 2nd Note: Reduced ntree and maxiter from defaults due to time constraints.
 # For a final production model, these could be increased and tuned.
 model_data_df <- as.data.frame(model_data) 
 missForest_result <- missForest(
-  model_data_df,
+  data_for_imputation_df,
   parallelize = "forests",
-  ntree = 30, # <-- default is 100. turn up if more time is available
-  maxiter = 3, # <- default is 10. turn up if more time is available
+  ntree = 5, # <-- default is 100. turn up if more time is available
+  maxiter = 1, # <- default is 10. turn up if more time is available
   verbose = TRUE
 )
 
 cat("MissForest imputation complete.\n")
-
-# The imputed dataset is in the $ximp element of the result
-model_data <- missForest_result$ximp
 
 # The OOBerror gives an estimate of imputation error.
 # For categorical variables (NRMSE is not applicable), it shows the
@@ -137,6 +144,11 @@ model_data <- missForest_result$ximp
 cat("Imputation Out-of-Bag (OOB) Error (PFC for categorical):\n")
 print(missForest_result$OOBerror)
 
+# The imputed dataset is in the $ximp element of the result
+imputed_part <- missForest_result$ximp
+
+# Note: missForest preserves row order, so bind_cols is safe.
+model_data <- bind_cols(imputed_part, data_metadata)
 
 # --- Cleanup Parallel Processing ---
 # It's good practice to stop the cluster to release the cores.
@@ -158,6 +170,9 @@ cat("\n--- Stage 1.12: Advanced Imputation using MissForest complete. ---\n")
 
 
 # 5. SAVE GLOBAL DATA (With Weights!)
+if (!dir.exists("data/intermediate")) {
+  dir.create("data/intermediate", recursive = TRUE)
+}
 saveRDS(model_data, "data/intermediate/global_cleaned_data.rds")
 
 # 6. PREPARE STUDENT DATA
@@ -166,4 +181,9 @@ student_data <- model_data %>%
   filter(hhsize <= 20) %>%
   select(-any_of(get_unnecessary_student_columns()))
 
+if (!dir.exists("data/processed")) {
+  dir.create("data/processed", recursive = TRUE)
+}
 saveRDS(student_data, "data/processed/student_model_data.rds")
+
+cat("Pipeline Complete.\n")

@@ -258,7 +258,7 @@ scope_data <- function(gem_data) {
     cat("No zero-variance columns found.\n")
   }
 
-  nzv_cols <- nearZeroVar(model_data, names = TRUE)
+  nzv_cols <- caret::nearZeroVar(model_data, names = TRUE)
   cat("Found", length(nzv_cols), "near-zero-variance columns:", paste(nzv_cols, collapse = ", "), "\n")
   cat("--- Stage 1.6: Finished Automated Data Sanity Checks. Columns remaining:", ncol(model_data), "---\n\n")
 

@@ -10,12 +10,12 @@ library(rnaturalearth)     # For World Map
 library(rnaturalearthdata) # For World Map
 require(patchwork)
 
-source("00_plotting_utils.R") # Load standardized plots
+source("scripts_analysis/00_plotting_utils.R")  # Load standardized plots
 
 # Load Data (Adjust path if necessary)
 # Note: For the map we need the data with weights/country codes. 
 # Using intermediate data from the pipeline.
-model_data <- readRDS("../data/intermediate/global_cleaned_data.rds")
+model_data <- readRDS("data/intermediate/global_cleaned_data.rds")
 
 
 # ==============================================================================

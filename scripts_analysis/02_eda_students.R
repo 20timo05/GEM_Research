@@ -6,10 +6,11 @@
 # --- Setup ---
 library(tidyverse)
 require(patchwork)
-source("00_plotting_utils.R")
+
+source("scripts_analysis/00_plotting_utils.R")
 
 # Load Data (The processed student data for modeling)
-student_data <- readRDS("../data/processed/student_model_data.rds")
+student_data <- readRDS("data/processed/student_model_data.rds")
 
 
 # ==============================================================================
