@@ -184,6 +184,7 @@ get_unnecessary_student_columns <- function() {
     "weight", "WEIGHT_L", "WEIGHT_A",
 
     # Analysis focuses on Germany, because ctryalp would lead to overfitting
+    # Are still used for EDA_Global, so remove after
     "ctryalp",
 
     # The occupation of "Student" is a key characteristic and is the same for our training subset of students

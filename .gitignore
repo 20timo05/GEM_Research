@@ -8,3 +8,5 @@ GEM2021APSGlobalIndividualLevelData_15Feb2023.csv
 *.Rproj
 
 output_final/
+
+output_experiments/
