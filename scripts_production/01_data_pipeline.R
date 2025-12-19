@@ -131,8 +131,8 @@ model_data_df <- as.data.frame(model_data)
 missForest_result <- missForest(
   data_for_imputation_df,
   parallelize = "forests",
-  ntree = 5, # <-- default is 100. turn up if more time is available
-  maxiter = 1, # <- default is 10. turn up if more time is available
+  ntree = 100, # <-- default is 100. turn up if more time is available
+  maxiter = 10, # <- default is 10. turn up if more time is available
   verbose = TRUE
 )
 

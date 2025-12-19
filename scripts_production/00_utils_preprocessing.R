@@ -142,6 +142,9 @@ get_redundant_columns <- function() {
     # World Bank WBINC provides a little more granularity over WBincREV
     "WBincREV",
 
+    # Derived aggregate of OPPORTyy, SUSKILyy, and KNOWENyy
+    "INDSUPyy", 
+
     # IDs and redundant country codes
     "setid", "ID", "country_name", "country", "REGION",
 

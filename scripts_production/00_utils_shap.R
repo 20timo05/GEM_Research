@@ -1,6 +1,7 @@
 library(fastshap)
 library(tidyverse)
 library(tidymodels)
+library(ranger)
 
 # --- 1. OFFLINE: Background Data Preparation ---
 # Run this ONCE when saving your model artifacts.
@@ -21,9 +22,7 @@ prepare_shap_background <- function(final_workflow, training_data, n_samples = 1
 }
 
 
-# --- 2. ONLINE: Fast SHAP Calculation ---
-# Run this inside your GUI when a new tuple arrives.
-# It takes the PRE-PROCESSED background data.
+## --- 2. ONLINE: Fast SHAP Calculation ---
 compute_single_shap <- function(final_workflow, background_processed, new_observation_raw) {
   
   # Extract necessary components
@@ -31,68 +30,90 @@ compute_single_shap <- function(final_workflow, background_processed, new_observ
   recipe_obj <- extract_recipe(final_workflow)
   
   # 1. Process ONLY the single new observation
-  # We use the existing recipe to ensure it matches the training format exactly
   obs_processed <- bake(recipe_obj, new_data = new_observation_raw) %>%
     select(-any_of("FUTSUPNO"))
   
+  # --- FIX: Force both to be standard data.frames ---
+  # fastshap throws an error if one is a 'tibble' and the other is a 'data.frame'
+  obs_processed_df <- as.data.frame(obs_processed)
+  background_processed_df <- as.data.frame(background_processed)
+  
   # 2. Define the prediction wrapper for Ranger
-  # The wrapper must accept the ENGINE and PROCESSED data
   pred_wrapper <- function(object, newdata) {
-    # 'object' is the raw ranger model
-    # 'newdata' is the dataframe of predictors (dummies, numerics)
+    # Ranger works best with standard data.frames too
     predict(object, data = newdata)$predictions[, "Yes"]
   }
   
   # 3. Compute SHAP
-  # Since X is already processed, we don't need to do it here.
   shap_values <- fastshap::explain(
     model_engine,
-    X = background_processed,    # Use the cached background
-    newdata = obs_processed,     # The new user input
+    X = background_processed_df,    # Use the coerced data.frame
+    newdata = obs_processed_df,     # Use the coerced data.frame
     pred_wrapper = pred_wrapper,
-    nsim = 50,                   # Monte Carlo simulations
+    nsim = 50,
     adjust = TRUE
   )
   
   # 4. Formatting for visualization
-  # We map the SHAP values back to the feature names
   df_shap <- data.frame(
-    feature = names(shap_values),
-    shap_value = as.numeric(shap_values[1, ]),
-    # We grab the baked values for display, or you could pass raw values if preferred
-    actual_value = t(obs_processed)[,1] 
+    feature = colnames(obs_processed_df), 
+    shap_value = as.numeric(shap_values), 
+    actual_value = as.numeric(obs_processed_df[1, ])
   )
   
   return(df_shap)
 }
 
-# --- 3. VISUALIZATION (Same as before) ---
-plot_shap_contribution <- function(shap_df, top_n = 6) {
-  # ... (Use the plotting code from the previous response) ...
-  # (Included below for completeness if you need it again)
-    plot_data <- shap_df %>%
-    mutate(abs_val = abs(shap_value)) %>%
-    arrange(desc(abs_val)) %>%
-    head(top_n) %>%
+plot_shap_contribution <- function(shap_df, top_n = 5) {
+  
+  # 1. Common Data Processing
+  processed_df <- shap_df %>%
     mutate(
-      direction = ifelse(shap_value > 0, "Positive (+)", "Negative (-)"),
-      feature = gsub("yy", "", feature),
-      label = paste0(feature, "\n(", round(as.numeric(actual_value), 2), ")") 
-      # Note: 'actual_value' from 'bake' might be dummy encoded (0/1). 
-      # If you want human-readable labels (e.g., "Agree"), pass 'new_observation_raw' 
-      # to this function alongside 'shap_df' and look up the values there.
+      # Clean feature names (remove 'yy' and underscores for readability)
+      clean_feature = gsub("yy", "", feature),
+      # Format Label: "Feature\n(Value)"
+      label = paste0(clean_feature, "\n(", round(actual_value, 2), ")"),
+      # Calculate absolute impact for sorting and plotting
+      abs_val = abs(shap_value)
     )
-
-  ggplot(plot_data, aes(x = reorder(label, shap_value), y = shap_value, fill = direction)) +
-    geom_col(width = 0.7, color = "black", alpha = 0.8) +
+  
+  # Shared Theme settings for consistent look
+  common_theme <- theme_minimal() +
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.text.y = element_text(size = 11, face = "bold", color = "#404040"),
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+      axis.title.x = element_text(size = 10, color = "grey30")
+    )
+  
+  # 2. Create POSITIVE Plot (Green)
+  pos_data <- processed_df %>%
+    filter(shap_value > 0) %>%
+    arrange(desc(abs_val)) %>%
+    head(top_n)
+  
+  p_pos <- ggplot(pos_data, aes(x = reorder(label, abs_val), y = abs_val)) +
+    geom_col(width = 0.6, fill = "#76D714", color = "black", alpha = 0.9) +
     coord_flip() +
-    scale_fill_manual(values = c("Positive (+)" = "#76D714", "Negative (-)" = "#EE3B3B")) +
-    facet_wrap(~direction, scales = "free_y", ncol = 1) +
-    theme_minimal() +
-    labs(
-      title = "Prediction Explanation",
-      y = "Contribution (SHAP Value)",
-      x = NULL
-    ) +
-    theme(legend.position = "none")
+    labs(title = "Positive (+)", x = NULL, y = "Contribution") +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) + # Nice spacing at right
+    common_theme
+
+  # 3. Create NEGATIVE Plot (Red) - NOW ALIGNED LEFT
+  neg_data <- processed_df %>%
+    filter(shap_value < 0) %>%
+    arrange(desc(abs_val)) %>% # Sort by magnitude
+    head(top_n)
+  
+  # We plot 'abs_val' on Y so bars grow to the right
+  p_neg <- ggplot(neg_data, aes(x = reorder(label, abs_val), y = abs_val)) +
+    geom_col(width = 0.6, fill = "#EE3B3B", color = "black", alpha = 0.9) +
+    coord_flip() +
+    labs(title = "Negative (-)", x = NULL, y = "Contribution") +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    common_theme
+  
+  # Return a LIST of two plots
+  return(list(positive = p_pos, negative = p_neg))
 }

@@ -154,19 +154,6 @@ apply_gem_relabeling <- function(data) {
       CREATIVyy = relabel_likert(CREATIVyy),
       VISIONyy = relabel_likert(VISIONyy),
 
-      # INDSUPyy: Individual perception to entrepreneurship Index (Codebook, p. 9)
-      INDSUPyy = factor(
-        case_when(
-          INDSUPyy == 0 ~ "0 of 3",
-          INDSUPyy == 1 ~ "1 of 3",
-          INDSUPyy == 2 ~ "2 of 3",
-          INDSUPyy == 3 ~ "3 of 3",
-          TRUE ~ "Unknown"
-        ),
-        levels = c("0 of 3", "1 of 3", "2 of 3", "3 of 3", "Unknown"),
-        ordered = TRUE
-      ),
-
       # FUTSUPNO: Entrepreneurial intentions (non-entrepreneurs) (Codebook, p. 13)
       FUTSUPNO = factor(FUTSUPNO, levels = 0:1, labels = c("No", "Yes")),
     )
