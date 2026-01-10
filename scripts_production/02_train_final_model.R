@@ -31,7 +31,6 @@ student_data <- readRDS("data/processed/student_model_data.rds")
 
 # Remove ctryalp (High cardinality/noise)
 student_data <- student_data %>% select(-any_of(c("ctryalp")))
-student_data <- student_data %>% select(-any_of(c("Mindset_Asked"))) #remove because effect cannot be replicated in the GUI
 
 
 set.seed(42)
