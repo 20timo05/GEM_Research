@@ -315,9 +315,24 @@ server <- function(input, output, session) {
   
   # Reactive Data Construction
   current_data <- reactive({
+    # 1. Map Country Input to WBINC Level
+    wbinc_lookup <- c(
+      "Germany (DE)"      = "High",
+      "Spain (ES)"        = "High",
+      "Poland (PL)"       = "High",
+      "Chile (CL)"        = "High",
+      "France (FR)"       = "High",
+      "Saudi Arabia (SA)" = "High",
+      "Other"             = "High" # Default fallback
+    )
+    
+    # Get level based on input, default to "High" if something goes wrong
+    selected_wbinc <- wbinc_lookup[input$ctryalp]
+    if(is.na(selected_wbinc)) selected_wbinc <- "High"
+    
     data.frame(
       # Demographics
-      WBINC = factor("High", levels = c("Low", "Lower Middle", "Upper Middle", "High")),
+      WBINC = factor(selected_wbinc, levels = c("Low", "Lower Middle", "Upper Middle", "High")),
       gender = factor(input$gender, levels = c("Male", "Female")),
       age = as.numeric(input$age),
       hhsize = as.numeric(input$hhsize),
