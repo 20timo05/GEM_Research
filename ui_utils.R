@@ -267,38 +267,52 @@ app_css <- '
 '
 
 app_js <- "
+  // 1. CLICK HANDLER for Segmented Controls
   $(document).on('click', '.segmented-option', function() {
-    // 1. Visual update
+    // Visual update
     $(this).siblings().removeClass('active');
     $(this).addClass('active');
     
-    // 2. Send value to Shiny
-    // We find the parent container's ID and send input$[parentID] = value
+    // Send value to Shiny
     var inputId = $(this).parent().attr('id');
     var val = $(this).attr('data-value');
     Shiny.setInputValue(inputId, val);
+    
+    // NEW: Remove error immediately when user makes a choice
+    $(this).parent().removeClass('input-error');
   });
-  
-   Shiny.addCustomMessageHandler('validate_input', function(data) {
+
+  // 2. GENERIC HANDLER for Standard Inputs (Age) & Dropdowns
+  // Detects typing or selecting in standard fields
+  $(document).on('input change', 'input, select', function() {
+    // A. Remove error from the input itself (e.g. Age box)
+    $(this).removeClass('input-error');
+    
+    // B. Remove error from Selectize Dropdowns (Visual part is a sibling)
+    $(this).next('.selectize-control').find('.selectize-input').removeClass('input-error');
+  });
+
+  // 3. VALIDATION HANDLER (From Server)
+  Shiny.addCustomMessageHandler('validate_input', function(data) {
     var id = data.id;
     var isValid = data.valid;
     var $el = $('#' + id);
     
-    // Helper to toggle class
     var toggle = function($target) {
       if (!isValid) $target.addClass('input-error');
       else $target.removeClass('input-error');
     };
- 
-    // 1. Check if it is our custom Segmented Control
+
     if ($el.hasClass('segmented-control')) {
       toggle($el);
     } 
-    // 2. Check if it is a Shiny SelectInput (Selectize)
-    // The ID is on the hidden select, we style the sibling .selectize-control .selectize-input
     else {
       var $selectize = $el.next('.selectize-control').find('.selectize-input');
-      if ($selectize.length > 0) toggle($selectize);
+      if ($selectize.length > 0) {
+         toggle($selectize);
+      } else {
+         toggle($el);
+      }
     }
   });
 "

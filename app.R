@@ -191,25 +191,25 @@ ui <- fluidPage(
                      ui_segmented_control(
                        "OPPORTyy", 
                        '"In den nächsten sechs Monaten wird es in der Gegend, in der du lebst, gute Gelegenheiten geben, ein Unternehmen zu gründen."',
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree") # @TODO don't allow no answer (unsure if unknown is not answered or survey design)
+                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")
                      ),
                      
                      ui_segmented_control(
                        "SUSKILyy", 
                        '"Ich habe das Wissen, die Fähigkeiten und die Erfahrung, um ein Unternehmen zu gründen."',
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")  # @TODO don't allow no answer 
+                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")
                      ),
                      
                      ui_segmented_control(
                        "FRFAILyy", 
                        "Die Angst vor dem Scheitern würde mich davon abhalten, ein Unternehmen zu gründen.",
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")  # @TODO don't allow no answer 
+                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree") 
                      ),
                      
                      ui_segmented_control(
                        "EASYSTyy", 
                        "Es ist leicht in meinem Land ein Unternehmen zu gründen.",
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")  # @TODO don't allow no answer 
+                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")
                      )
                    )
                  )
@@ -292,13 +292,39 @@ server <- function(input, output, session) {
     
   # Navigation Logic
   observeEvent(input$btn_start_test, { updateTabsetPanel(session, "wizard", selected = "p1") })
-  observeEvent(input$btn_p1_next, { updateTabsetPanel(session, "wizard", selected = "p2") })
   observeEvent(input$btn_p2_back, { updateTabsetPanel(session, "wizard", selected = "p1") })
   observeEvent(input$btn_p3_back, { updateTabsetPanel(session, "wizard", selected = "p2") })
   observeEvent(input$btn_p4_back, { updateTabsetPanel(session, "wizard", selected = "p3") })
+  observeEvent(input$btn_p1_next, { 
+    has_error <- FALSE
+    
+    # 1. Validate Gender (Mandatory)
+    if (is.null(input$gender)) {
+      session$sendCustomMessage("validate_input", list(id = "gender", valid = FALSE))
+      has_error <- TRUE
+    } else {
+      session$sendCustomMessage("validate_input", list(id = "gender", valid = TRUE))
+    }
+    
+    # 2. Validate Age (Optional, but strict interval IF entered)
+    val_age <- input$age
+    is_age_valid <- TRUE
+    
+    # numericInput returns NA if empty. If NOT NA, check bounds.
+    if (!is.na(val_age)) {
+      if (val_age < 18 || val_age > 64) {
+        is_age_valid <- FALSE
+      }
+    }
+    
+    session$sendCustomMessage("validate_input", list(id = "age", valid = is_age_valid))
+    if (!is_age_valid) has_error <- TRUE
+    
+    if (!has_error) updateTabsetPanel(session, "wizard", selected = "p2") 
+  })
   observeEvent(input$btn_p2_next, { 
     # Validate Page 2 Inputs
-    req_ids <- c("GEMHHINC", "GEMEDUC")
+    req_ids <- c("GEMHHINC", "GEMEDUC", "cphhinc")
     has_error <- FALSE
     
       for(id in req_ids) {
@@ -315,7 +341,7 @@ server <- function(input, output, session) {
   })
   observeEvent(input$btn_p3_next, { 
     # Validate Page 3 Inputs
-    req_ids <- c("OPPORTyy", "SUSKILyy", "FRFAILyy", "EASYSTyy")
+    req_ids <- c("KNOWENyy", "OPPORTyy", "SUSKILyy", "FRFAILyy", "EASYSTyy")
     has_error <- FALSE
     
       for(id in req_ids) {
@@ -333,7 +359,23 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$btn_finish, { 
-    updateTabsetPanel(session, "wizard", selected = "results") 
+    # Validate Page 4 Inputs (Mindset)
+    req_ids <- c("OPPISMyy", "PROACTyy", "CREATIVyy", "VISIONyy")
+    has_error <- FALSE
+    
+    for(id in req_ids) {
+      val <- input[[id]]
+      if (is.null(val) || val == "") {
+        session$sendCustomMessage("validate_input", list(id = id, valid = FALSE))
+        has_error <- TRUE
+      } else {
+        session$sendCustomMessage("validate_input", list(id = id, valid = TRUE))
+      }
+    }
+    
+    if (!has_error) {
+      updateTabsetPanel(session, "wizard", selected = "results") 
+    }
   })
   
   observeEvent(input$btn_restart, {
