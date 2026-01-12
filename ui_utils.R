@@ -257,6 +257,11 @@ app_css <- '
       background: #aee6e0 !important;
     }
     
+    .input-error {
+      border: 2px solid #d62728 !important; /* Red Border */
+      box-shadow: 0 0 8px rgba(214, 39, 40, 0.4) !important; /* Red Glow */
+    }
+    
     /* Hide Standard Shiny Notifications for cleaner look if desired */
     /* #shiny-notification-panel { display: none; } */
 '
@@ -272,6 +277,29 @@ app_js <- "
     var inputId = $(this).parent().attr('id');
     var val = $(this).attr('data-value');
     Shiny.setInputValue(inputId, val);
+  });
+  
+   Shiny.addCustomMessageHandler('validate_input', function(data) {
+    var id = data.id;
+    var isValid = data.valid;
+    var $el = $('#' + id);
+    
+    // Helper to toggle class
+    var toggle = function($target) {
+      if (!isValid) $target.addClass('input-error');
+      else $target.removeClass('input-error');
+    };
+ 
+    // 1. Check if it is our custom Segmented Control
+    if ($el.hasClass('segmented-control')) {
+      toggle($el);
+    } 
+    // 2. Check if it is a Shiny SelectInput (Selectize)
+    // The ID is on the hidden select, we style the sibling .selectize-control .selectize-input
+    else {
+      var $selectize = $el.next('.selectize-control').find('.selectize-input');
+      if ($selectize.length > 0) toggle($selectize);
+    }
   });
 "
 
