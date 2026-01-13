@@ -3,6 +3,32 @@ library(tidyverse)
 library(tidymodels)
 library(ranger)
 
+# --- Dictionary: Technical Name -> User Friendly Name ---
+variable_labels <- c(
+  # Demographics
+  "ctryalp"   = "Country",
+  "gender"    = "Gender",
+  "age"       = "Age",
+  "hhsize"    = "Household Size",
+  "GEMOCCU"   = "Job Status",
+  "GEMHHINC"  = "Income Level",
+  "GEMEDUC"   = "Education",
+  "cphhinc"   = "Covid Income Impact",
+  
+  # Entrepreneurial Perceptions
+  "KNOWENyy"  = "Knows Founder",
+  "OPPORTyy"  = "Sees Opportunities",
+  "SUSKILyy"  = "Startup Skills",
+  "FRFAILyy"  = "Fear of Failure",
+  "EASYSTyy"  = "Ease of Starting",
+  "CREATIVyy" = "Seen as Innovative",
+  "VISIONyy"  = "Career Plan",
+  
+  # Semantic Fixes (Negative/Inverse Questions)
+  "OPPISMyy"  = "Misses Opportunities", # Corrected semantic meaning
+  "PROACTyy"  = "Hesitant to Act"       # Corrected semantic meaning
+)
+
 # --- 1. OFFLINE: Background Data Preparation ---
 # Run this ONCE when saving your model artifacts.
 # It creates the reference dataset that SHAP needs to compare against.
@@ -118,9 +144,17 @@ plot_shap_contribution <- function(shap_df, top_n = 5) {
     filter(feature != "Mindset_Asked") %>% 
     
     mutate(
-      clean_feature = gsub("yy", "", feature),
-      # Fix: actual_value is now text, so we paste it directly (no rounding)
+      # --- RENAME LOGIC START ---
+      # Check if the feature exists in our dictionary; if yes, use new name, else keep original
+      clean_feature = ifelse(feature %in% names(variable_labels), 
+                             variable_labels[feature], 
+                             feature),
+      # --- RENAME LOGIC END ---
+      
+      # Create label: "Name \n (Value)"
       label = paste0(clean_feature, "\n(", actual_value, ")"), 
+      
+      # Absolute value for sorting
       abs_val = abs(shap_value)
     )
   

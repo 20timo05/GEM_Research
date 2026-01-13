@@ -46,7 +46,7 @@ likert_levels <- c("Strongly Disagree", "Somewhat Disagree", "Neither",
 # Recommendation Logic
 get_recommendations <- function(shap_res) {
   if (is.null(shap_res)) {
-    return("Keine Daten für Empfehlungen verfügbar.")
+    return("No data available for recommendations.")
   }
   
   lowest_var <- shap_res %>%
@@ -55,31 +55,31 @@ get_recommendations <- function(shap_res) {
     pull(feature)
   
   recs <- list(
-    "FRFAILyy" = c("1. Betrachte Fehler als wertvolle Lernchance.", "2. Starte mit kleinen, kalkulierbaren Risiken.", "3. Sprich mit erfahrenen Mentoren über ihre Rückschläge."),
-    "SUSKILyy" = c("1. Nutze Online-Kurse zur gezielten Weiterbildung.", "2. Suche nach einem Mitgründer mit ergänzenden Skills.", "3. Übe das Pitchen deiner Idee vor Freunden."),
-    "OPPORTyy" = c("1. Netzwerke aktiver in deiner lokalen Startup-Szene.", "2. Untersuche aktuelle Marktrends und Nischen.", "3. Brainstorme Lösungen für Alltagsprobleme, die dich stören."),
-    "KNOWENyy" = c("1. Besuche Startup-Events und Meetups.", "2. Vernetze dich gezielt auf LinkedIn mit Gründern.", "3. Tritt Online-Gründer-Communities bei."),
-    "EASYSTyy" = c("1. Informiere dich bei lokalen Behörden über Gründungsschritte.", "2. Such nach Vereinfachungen oder digitalen Gründungswegen.", "3. Hol dir Unterstützung bei der IHK oder Gründungszentren."),
-    "GEMHHINC" = c("1. Erstelle einen soliden Finanzplan.", "2. Prüfe Möglichkeiten für Nebenberufliche Gründungen.", "3. Suche nach kostengünstigen Ressourcen (Bootstrapping)."),
-    "GEMEDUC" = c("1. Nutze spezialisierte Weiterbildungen für Gründer.", "2. Suche Mentoren mit Branchenerfahrung.", "3. Lerne 'Learning by Doing' durch kleine Projekte."),
-    "cphhinc" = c("1. Fokussiere auf kosteneffiziente Geschäftsmodelle.", "2. Nutze staatliche Hilfen für Gründer.", "3. Baue finanzielle Reserven langsam wieder auf."),
-    "OPPISMyy" = c("1. Trainiere deinen Blick für positive Chancen.", "2. Lies Erfolgsgeschichten zur Inspiration.", "3. Umgib dich mit optimistischen Menschen."),
-    "PROACTyy" = c("1. Setze dir täglich kleine, erreichbare Ziele.", "2. Etabliere eine 'Tu es jetzt'-Mentalität.", "3. Zerlege große Aufgaben in kleine Schritte."),
-    "CREATIVyy" = c("1. Mache Brainstorming-Sessions im Team.", "2. Wechsle öfter die Perspektive bei Problemen.", "3. Nutze Kreativitätstechniken wie Design Thinking."),
-    "VISIONyy" = c("1. Definiere deine langfristigen Ziele schriftlich.", "2. Erstelle ein Vision Board für dein Unternehmen.", "3. Reflektiere deine persönlichen Werte."),
-    "age" = c("1. Nutze deine Lebenserfahrung als Stärke.", "2. Bleibe neugierig und offen für neue Technologien.", "3. Vernetze dich mit Gründern anderer Generationen."),
-    "gender" = c("1. Nutze spezifische Förderprogramme (z.B. für Gründerinnen).", "2. Suche dir Vorbilder in deiner Peer-Group.", "3. Baue ein diverses Netzwerk auf."),
-    "hhsize" = c("1. Organisiere dein Zeitmanagement strikt.", "2. Involviere Familie/Partner in deine Pläne.", "3. Schaffe dir feste Arbeitszeiten und -räume."),
-    "ctryalp" = c("1. Untersuche das lokale Startup-Ökosystem genau.", "2. Vernetze dich international.", "3. Nutze lokale Vorteile und Förderungen.")
+    "FRFAILyy" = c("1. View failure as a learning opportunity.", "2. Start with small, calculated risks.", "3. Talk to experienced mentors about their setbacks."),
+    "SUSKILyy" = c("1. Use online courses for targeted upskilling.", "2. Look for a co-founder with complementary skills.", "3. Practice pitching your idea to friends."),
+    "OPPORTyy" = c("1. Network more actively in your local startup scene.", "2. Investigate current market trends and niches.", "3. Brainstorm solutions for everyday problems that annoy you."),
+    "KNOWENyy" = c("1. Attend startup events and meetups.", "2. Connect specifically with founders on LinkedIn.", "3. Join online founder communities."),
+    "EASYSTyy" = c("1. Inform yourself at local authorities about founding steps.", "2. Look for simplifications or digital founding paths.", "3. Get support from chambers of commerce or incubation centers."),
+    "GEMHHINC" = c("1. Create a solid financial plan.", "2. Check possibilities for part-time founding.", "3. Look for cost-effective resources (bootstrapping)."),
+    "GEMEDUC" = c("1. Use specialized training for founders.", "2. Seek mentors with industry experience.", "3. Learn by doing through small projects."),
+    "cphhinc" = c("1. Focus on cost-efficient business models.", "2. Use government aid for founders.", "3. Rebuild financial reserves slowly."),
+    "OPPISMyy" = c("1. Train your eye for positive opportunities.", "2. Read success stories for inspiration.", "3. Surround yourself with optimistic people."),
+    "PROACTyy" = c("1. Set daily small, achievable goals.", "2. Establish a 'do it now' mentality.", "3. Break large tasks into small steps."),
+    "CREATIVyy" = c("1. Hold brainstorming sessions in the team.", "2. Change perspectives more often when solving problems.", "3. Use creativity techniques like Design Thinking."),
+    "VISIONyy" = c("1. Define your long-term goals in writing.", "2. Create a vision board for your company.", "3. Reflect on your personal values."),
+    "age" = c("1. Use your life experience as a strength.", "2. Stay curious and open to new technologies.", "3. Network with founders of other generations."),
+    "gender" = c("1. Use specific support programs (e.g., for female founders).", "2. Look for role models in your peer group.", "3. Build a diverse network."),
+    "hhsize" = c("1. Organize your time management strictly.", "2. Involve family/partner in your plans.", "3. Create fixed working hours and spaces."),
+    "ctryalp" = c("1. Investigate the local startup ecosystem closely.", "2. Network internationally.", "3. Use local advantages and subsidies.")
   )
   
-  default_rec <- c("1. Überprüfe deinen Businessplan auf Schwachstellen.", "2. Hole dir allgemeines Feedback von potenziellen Kunden ein.", "3. Analysiere den Markt erneut auf Bedürfnisse.")
+  default_rec <- c("1. Review your business plan for weaknesses.", "2. Get general feedback from potential customers.", "3. Analyze the market again for needs.")
   
   selected_recs <- if (lowest_var %in% names(recs)) recs[[lowest_var]] else default_rec
   
   HTML(paste0(
-    "<strong>Der stärkste negative Einflussfaktor war '", lowest_var, "'.</strong>",
-    "Wir empfehlen dir folgende Schritte:<br>",
+    "<strong>The strongest negative influence factor was '", lowest_var, "'.</strong>",
+    "We recommend the following steps:<br>",
     "<ul style='width: fit-content; list-style-type: none;'>", paste0("<li>", selected_recs, "</li>", collapse = ""), "</ul>"
   ))
 }
@@ -104,36 +104,36 @@ ui <- fluidPage(
         tabPanel("p1",
                  ui_page_template(
                    id = "p1", 
-                   title = "Teil 1: Demografische Daten",
+                   title = "Section A: Demographics",
                    step_now = 1, total_steps = 4,
                    prev_id = NULL, next_id = "btn_p1_next",
                    content_ui = tagList(
-                     p("Bitte gib uns ein paar Informationen zu deiner Person."),
+                     p("Please provide some information about yourself."),
                      
                      # ctryalp: Using standard input because list is long
                      ui_standard_input(
                        selectInput(inputId= "ctryalp", label = NULL, width = "100%",
-                                   choices = list("Deutschland" = "Germany (DE)", "Spanien" = "Spain (ES)", "Polen" = "Poland (PL)", "Chile" = "Chile (CL)", "Frankreich" = "France (FR)",  "Saudi Arabien" = "Saudi Arabia (SA)", "Andere" = "Other")),
-                       "In welchem Land lebst du?"
+                                   choices = list("Germany (DE)" = "Germany (DE)", "Spain (ES)" = "Spain (ES)", "Poland (PL)" = "Poland (PL)", "Chile (CL)" = "Chile (CL)", "France (FR)" = "France (FR)",  "Saudi Arabia (SA)" = "Saudi Arabia (SA)", "(Other)" = "Other")),
+                       "In which country do you reside?"
                      ),
                      
                      # gender: Using segmented control
                      ui_segmented_control(
                        inputId = "gender", 
-                       label = "Was ist dein Geschlecht?", 
-                       choices = c("Männlich" = "Male", "Weiblich" = "Female")
+                       label = "Please indicate your gender:", 
+                       choices = c("Male" = "Male", "Female" = "Female")
                      ),
                      
                      # age: Standard numeric input
                      ui_standard_input(
                        numericInput(inputId= "age", label = NULL, value = NULL, min = 18, max = 64, width = "100px"),
-                       "Wie alt bist du?"
+                       "What is your age in years?"
                      ),
                      
                      # hhsize: Standard numeric input
                      ui_standard_input(
                        numericInput(inputId= "hhsize", label = NULL, value = 2, min = 1, max = 20, width = "100px"),
-                       "Wie viele Personen leben in deinem Haushalt (mit dir eingeschlossen):"
+                       "Including yourself, how many people live in your household?"
                      )
                    )
                  )
@@ -143,7 +143,7 @@ ui <- fluidPage(
         tabPanel("p2",
                  ui_page_template(
                    id = "p2", 
-                   title = "Teil 2: Dein Arbeitsstatus & Einkommen",
+                   title = "Section B: Your Work Situation and Household Income",
                    step_now = 2, total_steps = 4,
                    prev_id = "btn_p2_back", next_id = "btn_p2_next",
                    content_ui = tagList(
@@ -151,22 +151,22 @@ ui <- fluidPage(
                      # GEMHHINC: Segmented
                      ui_segmented_control(
                        inputId = "GEMHHINC", 
-                       label = "In welche der folgenden Kategorien fällt dein jährliches Gesamthaushaltseinkommen?", 
-                       choices = c("Unteres Drittel" = "Lowest Third", "Mittleres Drittel" = "Middle Third", "Oberes Drittel" = "Upper Third") # @TODO allow no choice (and then map that to Unknown Category)
+                       label = "Into which of the following categories does your total annual household income fall?", 
+                       choices = c("Lowest Third" = "Lowest Third", "Middle Third" = "Middle Third", "Upper Third" = "Upper Third") # @TODO allow no choice (and then map that to Unknown Category)
                      ),
                      
                      # GEMEDUC: Standard Input (List is too long for buttons)
                      ui_standard_input(
                        selectInput(inputId = "GEMEDUC", label = NULL, width = "100%", selected = character(0),
-                                   choices = list("Kein Abschluss" = "None", "Schule ohne Abschluss" = "Some Secondary", "Mittlere Reife / Abitur" = "Secondary Degree", "Berufsausbildung / Lehre" = "Post-Secondary", "Hochschulabschluss" = "Graduate Experience")), # @TODO don't allow no choice, put default None
-                       "Was ist deine höchste schulische Bildung?"
+                                   choices = list("None" = "None", "Some Secondary" = "Some Secondary", "Secondary Degree" = "Secondary Degree", "Post-Secondary" = "Post-Secondary", "Graduate Experience" = "Graduate Experience", "Other/Unknown" = "Other/Unknown")), # @TODO don't allow no choice, put default None
+                       "What is the highest level of education you have completed?"
                      ),
                      
                      # cphhinc: Segmented (5 options fits okay on wide screens, or stacks)
                      ui_segmented_control(
                        inputId = "cphhinc", 
-                       label = "Wie hat die Corona Pandemie dein Haushaltseinkommen im Jahr 2020 verringert?", 
-                       choices = c("Stark verringert" = "Strongly Decrease", "Etwas verringert" = "Somewhat Decrease", "Keine Veränderung" = "No Change", "Etwas erhöht" = "Somewhat Increase", "Stark erhöht" = "Strongly Increase")
+                       label = "How has the coronavirus pandemic affected your household income in 2020?", 
+                       choices = c("Strongly Decrease" = "Strongly Decrease", "Somewhat Decrease" = "Somewhat Decrease", "No Change" = "No Change", "Somewhat Increase" = "Somewhat Increase", "Strongly Increase" = "Strongly Increase")
                      )
                    )
                  )
@@ -176,40 +176,40 @@ ui <- fluidPage(
         tabPanel("p3",
                  ui_page_template(
                    id = "p3", 
-                   title = "Teil 3: Unternehmerische Wahrnehmung",
+                   title = "Section C: Your Entrepreneurial Perceptions",
                    step_now = 3, total_steps = 4,
                    prev_id = "btn_p3_back", next_id = "btn_p3_next",
                    content_ui = tagList(
-                     p("Deine Einstellung zu Risiko und Erfolg."),
+                     p("Your attitude towards risk and success."),
                      
                      ui_segmented_control(
                        "KNOWENyy", 
-                       "Kennst du jemanden, der in den letzten 2 Jahren ein Unternehmen gegründet hat?",
-                       c("Nein" = "None", "Ja" = "At least one")
+                       "Do you personally know anyone who has started a business in the past two years?",
+                       c("None" = "None", "At least one" = "At least one")
                      ),
                      
                      ui_segmented_control(
                        "OPPORTyy", 
-                       '"In den nächsten sechs Monaten wird es in der Gegend, in der du lebst, gute Gelegenheiten geben, ein Unternehmen zu gründen."',
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")
+                       '"In the next six months, there will be good opportunities for starting a business in the area where you live."',
+                       c("Disagree" = "Disagree", "Agree" = "Agree")
                      ),
                      
                      ui_segmented_control(
                        "SUSKILyy", 
-                       '"Ich habe das Wissen, die Fähigkeiten und die Erfahrung, um ein Unternehmen zu gründen."',
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")
+                       '"You have the knowledge, skill, and experience required to start a new business."',
+                       c("Disagree" = "Disagree", "Agree" = "Agree")
                      ),
                      
                      ui_segmented_control(
                        "FRFAILyy", 
-                       "Die Angst vor dem Scheitern würde mich davon abhalten, ein Unternehmen zu gründen.",
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree") 
+                       '"Fear of failure would prevent you from starting a business."',
+                       c("Disagree" = "Disagree", "Agree" = "Agree") 
                      ),
                      
                      ui_segmented_control(
                        "EASYSTyy", 
-                       "Es ist leicht in meinem Land ein Unternehmen zu gründen.",
-                       c("Stimme nicht zu" = "Disagree", "Stimme zu" = "Agree")
+                       '"In your country, it is easy to start a business."',
+                       c("Disagree" = "Disagree", "Agree" = "Agree")
                      )
                    )
                  )
@@ -219,35 +219,35 @@ ui <- fluidPage(
         tabPanel("p4",
                  ui_page_template(
                    id = "p4", 
-                   title = "Teil 4: Deine Einstellung",
+                   title = "Section D: Your Personal Views",
                    step_now = 4, total_steps = 4,
                    prev_id = "btn_p4_back", next_id = "btn_finish",
                    content_ui = tagList(
-                     p("Wie würdest du deine Persönlichkeit beschreiben?"),
+                     p("How would you describe your personality?"),
                      
                      # Note: Using the exact choice strings from original app
                      ui_segmented_control(
                        "OPPISMyy", 
-                       "Selbst wenn ich mich in einem Bereich sehr gut auskenne, sehe ich selten Geschäftsmöglichkeiten.",
-                       c("Stimme gar nicht zu" = "Strongly Disagree", "Stimme weniger zu" = "Somewhat Disagree", "Weder noch" = "Neither", "Stimme zu" = "Somewhat Agree", "Stimme gar zu" = "Strongly Agree")
+                       '"You rarely see business opportunities, even if you are very knowledgeable in the area."',
+                       c("Strongly Disagree" = "Strongly Disagree", "Somewhat Disagree" = "Somewhat Disagree", "Neither" = "Neither", "Somewhat Agree" = "Somewhat Agree", "Strongly Agree" = "Strongly Agree")
                      ),
                      
                      ui_segmented_control(
                        "PROACTyy", 
-                       "Selbst wenn ich eine gewinnbringende Gelegenheit erkenne, werde ich selten aktiv.",
-                       c("Stimme gar nicht zu" = "Strongly Disagree", "Stimme weniger zu" = "Somewhat Disagree", "Weder noch" = "Neither", "Stimme zu" = "Somewhat Agree", "Stimme gar zu" = "Strongly Agree")
+                       '"Even when you spot a profitable opportunity, you rarely act on it."',
+                       c("Strongly Disagree" = "Strongly Disagree", "Somewhat Disagree" = "Somewhat Disagree", "Neither" = "Neither", "Somewhat Agree" = "Somewhat Agree", "Strongly Agree" = "Strongly Agree")
                      ),
                      
                      ui_segmented_control(
                        "CREATIVyy", 
-                       "Andere denken über mich, dass ich innovativ bin.",
-                       c("Stimme gar nicht zu" = "Strongly Disagree", "Stimme weniger zu" = "Somewhat Disagree", "Weder noch" = "Neither", "Stimme zu" = "Somewhat Agree", "Stimme gar zu" = "Strongly Agree")
+                       '"Other people think you are highly innovative."',
+                       c("Strongly Disagree" = "Strongly Disagree", "Somewhat Disagree" = "Somewhat Disagree", "Neither" = "Neither", "Somewhat Agree" = "Somewhat Agree", "Strongly Agree" = "Strongly Agree")
                      ),
                      
                      ui_segmented_control(
                        "VISIONyy", 
-                       "Jede Entscheidung, die ich treffe, ist Teil meines langfristigen Karriereplans.",
-                       c("Stimme gar nicht zu" = "Strongly Disagree", "Stimme weniger zu" = "Somewhat Disagree", "Weder noch" = "Neither", "Stimme zu" = "Somewhat Agree", "Stimme gar zu" = "Strongly Agree")
+                       '"Every decision you make is part of your long-term career plan."',
+                       c("Strongly Disagree" = "Strongly Disagree", "Somewhat Disagree" = "Somewhat Disagree", "Neither" = "Neither", "Somewhat Agree" = "Somewhat Agree", "Strongly Agree" = "Strongly Agree")
                      )
                    )
                  )
@@ -256,29 +256,29 @@ ui <- fluidPage(
         # --- SLIDE 5: RESULTS ---
         tabPanel("results",
                  div(class = "container", style = "text-align: center;",
-                     h2("Dein Ergebnis"),
-                     p("Basierend auf deinen Antworten haben wir folgende Schlüsselfaktoren identifiziert", style = "color: #666;"),
+                     h2("Your Result"),
+                     p("Based on your answers, we have identified the following key factors", style = "color: #666;"),
                      hr(),
                      
                      fluidRow(
                        column(6, 
-                              h4("Positive Faktoren (Booster)", style = "color: #2ca02c;"),
+                              h4("Positive Factors (Boosters)", style = "color: #2ca02c;"),
                               plotOutput("plot_positive", height = "300px")
                        ),
                        column(6,
-                              h4("Negative Faktoren (Hemmnisse)", style = "color: #d62728;"),
+                              h4("Negative Factors (Barriers)", style = "color: #d62728;"),
                               plotOutput("plot_negative", height = "300px")
                        )
                      ),
                      
                      hr(),
-                     h4("Handlungsempfehlungen"),
+                     h4("Recommendations for Action"),
                      wellPanel(
                        htmlOutput("recommendation_text", style = "display: flex; flex-direction: column; align-items: center; gap: 10px;")
                      ),
                      
                      br(),
-                     actionButton("btn_restart", "Neu Starten", class = "btn-start", style = "margin-left: auto; margin-right: auto;")
+                     actionButton("btn_restart", "Restart", class = "btn-start", style = "margin-left: auto; margin-right: auto;")
                  )
         )
       )
@@ -289,7 +289,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   addResourcePath("assets", "www")
-    
+  
   # Navigation Logic
   observeEvent(input$btn_start_test, { updateTabsetPanel(session, "wizard", selected = "p1") })
   observeEvent(input$btn_p2_back, { updateTabsetPanel(session, "wizard", selected = "p1") })
@@ -327,34 +327,34 @@ server <- function(input, output, session) {
     req_ids <- c("GEMHHINC", "GEMEDUC", "cphhinc")
     has_error <- FALSE
     
-      for(id in req_ids) {
-          val <- input[[id]]
-          if (is.null(val) || val == "") {
-              session$sendCustomMessage("validate_input", list(id = id, valid = FALSE))
-              has_error <- TRUE
-            } else {
-                session$sendCustomMessage("validate_input", list(id = id, valid = TRUE))
-              }
-        }
+    for(id in req_ids) {
+      val <- input[[id]]
+      if (is.null(val) || val == "") {
+        session$sendCustomMessage("validate_input", list(id = id, valid = FALSE))
+        has_error <- TRUE
+      } else {
+        session$sendCustomMessage("validate_input", list(id = id, valid = TRUE))
+      }
+    }
     
-      if (!has_error) updateTabsetPanel(session, "wizard", selected = "p3") 
+    if (!has_error) updateTabsetPanel(session, "wizard", selected = "p3") 
   })
   observeEvent(input$btn_p3_next, { 
     # Validate Page 3 Inputs
     req_ids <- c("KNOWENyy", "OPPORTyy", "SUSKILyy", "FRFAILyy", "EASYSTyy")
     has_error <- FALSE
     
-      for(id in req_ids) {
-          val <- input[[id]]
-          if (is.null(val) || val == "") {
-              session$sendCustomMessage("validate_input", list(id = id, valid = FALSE))
-              has_error <- TRUE
-            } else {
-                session$sendCustomMessage("validate_input", list(id = id, valid = TRUE))
-              }
-        }
+    for(id in req_ids) {
+      val <- input[[id]]
+      if (is.null(val) || val == "") {
+        session$sendCustomMessage("validate_input", list(id = id, valid = FALSE))
+        has_error <- TRUE
+      } else {
+        session$sendCustomMessage("validate_input", list(id = id, valid = TRUE))
+      }
+    }
     
-      if (!has_error) updateTabsetPanel(session, "wizard", selected = "p4") 
+    if (!has_error) updateTabsetPanel(session, "wizard", selected = "p4") 
   })
   
   
@@ -409,8 +409,8 @@ server <- function(input, output, session) {
       val_age  <- 21    # Fallback/Imputation value (prevent model crash on NA)
       val_miss <- "Yes"
     } else {
-        val_age  <- as.numeric(input$age)
-        val_miss <- "No"
+      val_age  <- as.numeric(input$age)
+      val_miss <- "No"
     }
     
     data.frame(
@@ -443,6 +443,18 @@ server <- function(input, output, session) {
   })
   
   # --- Model Calculation ---
+  predicted_score <- eventReactive(input$btn_finish, {
+    req(final_model)
+    req(current_data())
+    
+    # Predict probability using the workflow saved in final_model.rds
+    pred_prob <- predict(final_model, current_data(), type = "prob")
+    
+    # Return the probability for the "Yes" class
+    return(pred_prob$.pred_Yes) 
+  })
+  
+  # SHAP Calculation
   shap_results <- eventReactive(input$btn_finish, {
     req(final_model)
     tryCatch({
@@ -456,7 +468,7 @@ server <- function(input, output, session) {
   
   # --- Plotting ---
   output$plot_positive <- renderPlot({
-    validate(need(shap_results(), "Die Analyse wird gestartet... Bitte warten."))
+    validate(need(shap_results(), "Analysis starting... Please wait."))
     plots <- plot_shap_contribution(shap_results(), top_n = 3)
     plots$positive + 
       theme_minimal() + 
@@ -465,7 +477,7 @@ server <- function(input, output, session) {
   })
   
   output$plot_negative <- renderPlot({
-    validate(need(shap_results(), "Die Analyse wird gestartet... Bitte warten."))
+    validate(need(shap_results(), "Analysis starting... Please wait."))
     plots <- plot_shap_contribution(shap_results(), top_n = 3)
     plots$negative + 
       theme_minimal() + 
